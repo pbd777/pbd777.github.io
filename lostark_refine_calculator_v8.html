@@ -1,0 +1,418 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>로스트아크 재련 계산기</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#f5f5f3;color:#1a1a18;padding:1.5rem;min-height:100vh}
+.wrap{max-width:820px;margin:0 auto;padding-bottom:3rem}
+h1{font-size:18px;font-weight:500;margin-bottom:1.5rem;color:#1a1a18}
+.sec-title{font-size:12px;color:#666;font-weight:500;margin-bottom:10px;letter-spacing:0.04em}
+.card{background:#fff;border:0.5px solid rgba(0,0,0,0.12);border-radius:12px;padding:14px 16px;margin-bottom:1rem}
+.row{display:flex;align-items:center;gap:10px;margin-bottom:8px}
+.row:last-child{margin-bottom:0}
+.lbl{font-size:13px;color:#666;width:60px;flex-shrink:0}
+.stage-select{font-size:13px;padding:4px 6px;border:0.5px solid rgba(0,0,0,0.15);border-radius:8px;background:#f5f5f3;color:#1a1a18;flex:1}
+.arrow{font-size:12px;color:#aaa;flex-shrink:0}
+.armor-note{font-size:11px;color:#aaa;margin-top:4px}
+.week-input{font-size:13px;padding:4px 8px;border:0.5px solid rgba(0,0,0,0.15);border-radius:8px;background:#f5f5f3;color:#1a1a18;width:70px;text-align:center}
+.week-unit{font-size:13px;color:#666}
+.stock-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+.stock-col{display:flex;flex-direction:column;gap:5px}
+.stock-name{font-size:11px;color:#666;line-height:1.3;min-height:28px;display:flex;align-items:flex-end}
+.stock-inp{font-size:13px;padding:5px 7px;border:0.5px solid rgba(0,0,0,0.15);border-radius:8px;background:#f5f5f3;color:#1a1a18;width:100%;text-align:right}
+.content-group{margin-bottom:10px}
+.content-group:last-child{margin-bottom:0}
+.content-group-name{font-size:12px;font-weight:500;color:#1a1a18;margin-bottom:6px}
+.content-options{display:flex;flex-direction:column;gap:4px}
+.content-option{display:flex;align-items:center;gap:8px;padding:7px 10px;border:0.5px solid rgba(0,0,0,0.12);border-radius:8px;cursor:pointer;transition:all .12s;background:#fff}
+.content-option:hover{background:#f5f5f3}
+.content-option.selected{border-color:#1a6ef5;background:#eef4ff}
+.content-diff{font-size:13px;color:#1a1a18}
+.content-sub{font-size:11px;color:#888;margin-top:1px}
+.tog{font-size:11px;padding:3px 9px;border:0.5px solid rgba(0,0,0,0.15);border-radius:99px;cursor:pointer;background:#fff;color:#666;transition:all .12s;white-space:nowrap}
+.tog.on{background:#d1fae5;color:#065f46;border-color:transparent}
+.badge-lava{font-size:10px;padding:1px 7px;border-radius:99px;background:#fee2e2;color:#991b1b;white-space:nowrap}
+.badge-ice{font-size:10px;padding:1px 7px;border-radius:99px;background:#dbeafe;color:#1e40af;white-space:nowrap}
+.divider{height:0.5px;background:rgba(0,0,0,0.1);margin:1rem 0}
+.summary-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-bottom:1rem}
+.metric{background:#f5f5f3;border-radius:8px;padding:10px 12px;text-align:center}
+.metric-label{font-size:11px;color:#666;margin-bottom:3px}
+.metric-value{font-size:20px;font-weight:500;color:#1a1a18}
+.metric-sub{font-size:10px;color:#888;margin-top:2px}
+.mat-table{width:100%;border-collapse:collapse;table-layout:fixed}
+.mat-table th{font-size:11px;color:#666;font-weight:500;padding:5px 6px;border-bottom:0.5px solid rgba(0,0,0,0.1);text-align:right;line-height:1.4}
+.mat-table th:first-child{text-align:left}
+.mat-table td{font-size:12px;padding:6px 6px;border-bottom:0.5px solid rgba(0,0,0,0.07);color:#1a1a18;text-align:right;vertical-align:middle}
+.mat-table td:first-child{text-align:left;font-size:11px}
+.mat-table tr:last-child td{border-bottom:none}
+.pill{display:inline-block;font-size:10px;padding:1px 7px;border-radius:99px;font-weight:500}
+.pill-ok{background:#d1fae5;color:#065f46}
+.pill-warn{background:#fef3c7;color:#92400e}
+.pill-err{background:#fee2e2;color:#991b1b}
+.bar-wrap{display:flex;align-items:center;gap:4px;justify-content:flex-end}
+.bar-bg{width:36px;height:5px;background:#e5e5e3;border-radius:99px;overflow:hidden;flex-shrink:0}
+.bar-fill{height:100%;border-radius:99px}
+.bar-ok{background:#059669}
+.bar-warn{background:#d97706}
+.bar-err{background:#dc2626}
+</style>
+</head>
+<body>
+<div class="wrap">
+<h1>로스트아크 재련 계산기</h1>
+
+<p class="sec-title">장비 단계 설정</p>
+<div class="card">
+  <div class="row">
+    <span class="lbl">무기</span>
+    <select class="stage-select" id="w_cur" onchange="calculate()"></select>
+    <span class="arrow">→</span>
+    <select class="stage-select" id="w_tgt" onchange="calculate()"></select>
+  </div>
+  <div class="row">
+    <span class="lbl">방어구</span>
+    <select class="stage-select" id="a_cur" onchange="calculate()"></select>
+    <span class="arrow">→</span>
+    <select class="stage-select" id="a_tgt" onchange="calculate()"></select>
+  </div>
+  <div class="armor-note">방어구 5개 동일 단계로 계산</div>
+</div>
+
+<p class="sec-title">목표 기간</p>
+<div class="card">
+  <div class="row">
+    <span class="lbl">목표 주수</span>
+    <input type="number" class="week-input" id="targetWeeks" min="1" max="200" value="8" oninput="calculate()">
+    <span class="week-unit">주 안에 완성하고 싶어요</span>
+  </div>
+</div>
+
+<p class="sec-title">현재 보유 재료</p>
+<div class="card"><div class="stock-grid" id="stockGrid"></div></div>
+
+<p class="sec-title">주간 레이드 설정</p>
+<div class="card" id="raidCard"></div>
+
+<p class="sec-title">일일 카던</p>
+<div class="card" id="dungeonCard"></div>
+
+<p class="sec-title">주간 콘텐츠 — 용암/빙하의 숨결</p>
+<div class="card" id="breathCard"></div>
+
+<div class="divider"></div>
+<p class="sec-title">재료별 수급 현황</p>
+<div class="summary-grid" id="summaryGrid"></div>
+<table class="mat-table">
+  <thead>
+    <tr>
+      <th style="width:15%">재료</th>
+      <th style="width:11%">필요량</th>
+      <th style="width:9%">보유량</th>
+      <th style="width:14%">레이드</th>
+      <th style="width:13%">카던</th>
+      <th style="width:14%">주간 콘텐츠</th>
+      <th style="width:11%">총 확보</th>
+      <th style="width:8%">부족/여유</th>
+      <th style="width:5%">달성</th>
+    </tr>
+  </thead>
+  <tbody id="matBody"></tbody>
+</table>
+</div>
+
+<script>
+const W_MAT={18:{파괴석:33560,돌파석:348,융화제:371,파편:313740,골드:79941,용암:287},19:{파괴석:36031,돌파석:371,융화제:394,파편:336448,골드:85734,용암:287},20:{파괴석:72052,돌파석:734,융화제:798,파편:673064,골드:171502,용암:537},21:{파괴석:77014,돌파석:798,융화제:841,파편:719661,골드:183367,용암:537},22:{파괴석:119546,돌파석:1227,융화제:1321,파편:1117439,골드:284708,용암:784},23:{파괴석:126781,돌파석:1321,융화제:1384,파편:1185392,골드:302011,용암:784},24:{파괴석:194849,돌파석:2013,융화제:2150,파편:1822251,골드:464253,용암:2281},25:{파괴석:205827,돌파석:2150,융화제:2287,파편:1921048,골드:489410,용암:2281}};
+const A_MAT={14:{수호석:10118,돌파석:117,융화제:117,파편:104073,골드:26650,빙하:178},15:{수호석:11202,돌파석:126,융화제:135,파편:114643,골드:29361,빙하:178},16:{수호석:12015,돌파석:135,융화제:144,파편:123497,골드:31619,빙하:178},17:{수호석:16799,돌파석:197,융화제:197,파편:171931,골드:44025,빙하:287},18:{수호석:18073,돌파석:208,융화제:220,파편:185486,골드:47501,빙하:287},19:{수호석:19695,돌파석:231,융화제:231,파편:201358,골드:51556,빙하:287},20:{수호석:39046,돌파석:453,융화제:474,파편:400171,골드:102469,빙하:536},21:{수호석:42066,돌파석:496,융화제:496,파편:429725,골드:110020,빙하:536},22:{수호석:65435,돌파석:755,융화제:786,파편:669457,골드:171454,빙하:783},23:{수호석:69210,돌파석:817,융화제:817,파편:706579,골드:180891,빙하:783},24:{수호석:106572,돌파석:1235,융화제:1280,파편:1089508,골드:279009,빙하:2281},25:{수호석:112061,돌파석:1326,융화제:1372,파편:1143481,골드:292731,빙하:2281}};
+const DUNGEON_DAILY={파괴석:350,수호석:980,돌파석:14,파편:44060};
+const RAID_GROUPS=[
+  {group:'지평의 성당',options:[
+    {key:'지평3',diff:'3단계',sub:'입장 레벨 1750',
+     clr:{파괴석:905,수호석:1810,돌파석:20,파편:20100},
+     more:{파괴석:2290,수호석:4580,돌파석:96,파편:51200}}
+  ]},
+  {group:'세르카',options:[
+    {key:'세르카nm',diff:'나이트메어',sub:'입장 레벨 1740',
+     clr:{파괴석:905,수호석:1810,돌파석:20,파편:20100,용암:10,빙하:30},
+     more:{파괴석:2290,수호석:4580,돌파석:96,파편:51200,용암:10,빙하:30}},
+    {key:'세르카hd',diff:'하드',sub:'입장 레벨 1730',
+     clr:{파괴석:860,수호석:1720,돌파석:17,파편:18400,용암:10,빙하:30},
+     more:{파괴석:1880,수호석:3760,돌파석:75,파편:44320,용암:10,빙하:30}}
+  ]},
+  {group:'종막',options:[
+    {key:'종막hd',diff:'하드',sub:'입장 레벨 1730',
+     clr:{파괴석:860,수호석:1720,돌파석:17,파편:18400},
+     more:{파괴석:2070,수호석:4140,돌파석:80,파편:47300}}
+  ]},
+  {group:'4막',options:[
+    {key:'4막hd',diff:'하드',sub:'입장 레벨 1720',
+     clr:{파괴석:426,수호석:852,돌파석:5,파편:15400},
+     more:{파괴석:912,수호석:1824,돌파석:29,파편:38450}}
+  ]}
+];
+const BREATH_CONTENTS=[
+  {group:'할의 모래시계',single:true,options:[{key:'모래시계',diff:'2단계',reward:{용암:36,빙하:36}}]},
+  {group:'혈석',single:true,options:[{key:'혈석',diff:'1단계',reward:{용암:2,빙하:4}}]},
+  {group:'에포나',single:false,options:[
+    {key:'에포나_용암',diff:'용암 선택',reward:{용암:9}},
+    {key:'에포나_빙하',diff:'빙하 선택',reward:{빙하:27}}
+  ]},
+  {group:'아제나 선택 상자',single:false,options:[
+    {key:'아제나_용암',diff:'용암 선택',reward:{용암:9}},
+    {key:'아제나_빙하',diff:'빙하 선택',reward:{빙하:27}}
+  ]}
+];
+const STOCK_DEFS=[
+  {k:'파괴석',label:'운명의 파괴석'},{k:'수호석',label:'운명의 수호석'},
+  {k:'돌파석',label:'위대한 운명의 돌파석'},{k:'파편',label:'운명의 파편'},
+  {k:'융화제',label:'상급 아비도스 융화제'},{k:'용암',label:'용암의 숨결'},{k:'빙하',label:'빙하의 숨결'},
+];
+const MAT_ROWS=[
+  {name:'운명의 파괴석',k:'파괴석',fromRaid:true,fromDung:true,fromBreath:false,gold:false},
+  {name:'운명의 수호석',k:'수호석',fromRaid:true,fromDung:true,fromBreath:false,gold:false},
+  {name:'돌파석',k:'돌파석',fromRaid:true,fromDung:true,fromBreath:false,gold:false},
+  {name:'운명의 파편',k:'파편',fromRaid:true,fromDung:true,fromBreath:false,gold:false},
+  {name:'상급 융화제',k:'융화제',fromRaid:false,fromDung:false,fromBreath:false,gold:true},
+  {name:'용암의 숨결',k:'용암',fromRaid:true,fromDung:false,fromBreath:true,gold:true},
+  {name:'빙하의 숨결',k:'빙하',fromRaid:true,fromDung:false,fromBreath:true,gold:true},
+];
+const state={};
+
+function mergeAdd(a,b){const r={...a};Object.keys(b).forEach(k=>r[k]=(r[k]||0)+(b[k]||0));return r;}
+function makeOpts(stages,sel){return stages.map(v=>`<option value="${v}"${v==sel?' selected':''}>${v}단계</option>`).join('')}
+
+function buildSelects(){
+  document.getElementById('w_cur').innerHTML=makeOpts([18,19,20,21,22,23,24,25],20);
+  document.getElementById('w_tgt').innerHTML=makeOpts([18,19,20,21,22,23,24,25],22);
+  document.getElementById('a_cur').innerHTML=makeOpts([14,15,16,17,18,19,20,21,22,23,24,25],18);
+  document.getElementById('a_tgt').innerHTML=makeOpts([14,15,16,17,18,19,20,21,22,23,24,25],20);
+}
+
+function buildStock(){
+  document.getElementById('stockGrid').innerHTML=STOCK_DEFS.map(d=>`
+    <div class="stock-col">
+      <div class="stock-name">${d.label}</div>
+      <input type="number" class="stock-inp" id="stock_${d.k}" min="0" value="0" oninput="calculate()">
+    </div>`).join('');
+}
+
+function raidSubText(o){
+  const bk=['용암','빙하'];
+  const clrB=bk.filter(k=>o.clr[k]).map(k=>`${k} ${o.clr[k]}`).join('·');
+  const moreB=bk.filter(k=>o.more[k]).map(k=>`${k} +${o.more[k]}`).join('·');
+  let s=o.sub;
+  if(clrB) s+=` / 클리어 ${clrB}`;
+  if(moreB) s+=` / 더보기 ${moreB}`;
+  return s;
+}
+
+function buildRaids(){
+  document.getElementById('raidCard').innerHTML=RAID_GROUPS.map(g=>`
+    <div class="content-group">
+      <div class="content-group-name">${g.group}</div>
+      <div class="content-options">${g.options.map(o=>`
+        <div class="content-option" id="opt_${o.key}" onclick="selectRaid('${g.group}','${o.key}')">
+          <div style="flex:1">
+            <div class="content-diff">${o.diff}</div>
+            <div class="content-sub">${raidSubText(o)}</div>
+          </div>
+          <span class="tog" id="more_${o.key}" onclick="event.stopPropagation();toggleMore('${g.group}','${o.key}')">더보기</span>
+        </div>`).join('')}
+      </div>
+    </div>`).join('');
+}
+
+function buildDungeon(){
+  document.getElementById('dungeonCard').innerHTML=`
+    <div class="content-group">
+      <div class="content-group-name">카던</div>
+      <div class="content-options">
+        <div class="content-option" id="opt_dung_clr" onclick="selectDungeon()">
+          <div style="flex:1">
+            <div class="content-diff">2단계 매일 클리어</div>
+            <div class="content-sub">파괴석 350 · 수호석 980 · 돌파석 14 · 파편 44,060 / 일</div>
+          </div>
+        </div>
+      </div>
+    </div>`;
+}
+
+function buildBreath(){
+  document.getElementById('breathCard').innerHTML=BREATH_CONTENTS.map(g=>`
+    <div class="content-group">
+      <div class="content-group-name">${g.group}${!g.single?' <span style="font-size:11px;color:#888;font-weight:400">— 둘 중 하나 선택</span>':''}</div>
+      <div class="content-options">${g.options.map(o=>{
+        const badges=Object.entries(o.reward).map(([k,v])=>
+          `<span class="${k==='용암'?'badge-lava':'badge-ice'}">${k==='용암'?'용암':'빙하'} ${v}</span>`
+        ).join(' ');
+        const fn=g.single?`toggleSingle('${o.key}')`:`selectGroup('${g.group}','${o.key}')`;
+        return `<div class="content-option" id="opt_${o.key}" onclick="${fn}">
+          <div style="flex:1"><div class="content-diff">${o.diff}</div></div>
+          <div style="display:flex;gap:4px;align-items:center">${badges}</div>
+        </div>`;
+      }).join('')}</div>
+    </div>`).join('');
+}
+
+function selectRaid(group,key){
+  const grp=RAID_GROUPS.find(g=>g.group===group);
+  const was=state[group]===key;
+  if(was){delete state[group];}else{state[group]=key;}
+  grp.options.forEach(o=>{
+    const sel=!was&&o.key===key;
+    document.getElementById('opt_'+o.key).className='content-option'+(sel?' selected':'');
+    if(!sel) delete state[o.key+'_more'];
+    document.getElementById('more_'+o.key).className='tog'+(state[o.key+'_more']?' on':'');
+  });
+  calculate();
+}
+
+function toggleMore(group,key){
+  if(state[group]!==key) return;
+  state[key+'_more']=!state[key+'_more'];
+  document.getElementById('more_'+key).className='tog'+(state[key+'_more']?' on':'');
+  calculate();
+}
+
+function selectDungeon(){
+  state.dungeon=!state.dungeon;
+  document.getElementById('opt_dung_clr').className='content-option'+(state.dungeon?' selected':'');
+  calculate();
+}
+
+function toggleSingle(key){
+  state[key]=!state[key];
+  document.getElementById('opt_'+key).className='content-option'+(state[key]?' selected':'');
+  calculate();
+}
+
+function selectGroup(group,key){
+  const grp=BREATH_CONTENTS.find(g=>g.group===group);
+  const was=state[group]===key;
+  if(was){delete state[group];}else{state[group]=key;}
+  grp.options.forEach(o=>{
+    document.getElementById('opt_'+o.key).className='content-option'+(!was&&o.key===key?' selected':'');
+  });
+  calculate();
+}
+
+function getWeeklyRaid(){
+  const w={};
+  RAID_GROUPS.forEach(g=>{
+    const key=state[g.group]; if(!key) return;
+    const opt=g.options.find(o=>o.key===key); if(!opt) return;
+    const src=state[key+'_more'] ? mergeAdd(opt.clr,opt.more) : opt.clr;
+    Object.keys(src).forEach(k=>w[k]=(w[k]||0)+src[k]);
+  });
+  return w;
+}
+
+function getWeeklyDungeon(){
+  if(!state.dungeon) return {};
+  const w={};
+  Object.keys(DUNGEON_DAILY).forEach(k=>w[k]=(DUNGEON_DAILY[k]||0)*7);
+  return w;
+}
+
+function getWeeklyBreath(){
+  const w={};
+  BREATH_CONTENTS.forEach(g=>{
+    if(g.single){
+      g.options.forEach(o=>{
+        if(!state[o.key]) return;
+        Object.keys(o.reward).forEach(k=>w[k]=(w[k]||0)+o.reward[k]);
+      });
+    } else {
+      const key=state[g.group]; if(!key) return;
+      const opt=g.options.find(o=>o.key===key); if(!opt) return;
+      Object.keys(opt.reward).forEach(k=>w[k]=(w[k]||0)+opt.reward[k]);
+    }
+  });
+  return w;
+}
+
+function getStock(){
+  const s={};
+  STOCK_DEFS.forEach(d=>{s[d.k]=parseInt(document.getElementById('stock_'+d.k).value)||0;});
+  return s;
+}
+
+function sumRange(from,to,table,mult){
+  const t={};
+  for(let s=from;s<to;s++){const m=table[s];if(!m)continue;Object.keys(m).forEach(k=>t[k]=(t[k]||0)+m[k]*mult);}
+  return t;
+}
+
+function calculate(){
+  const wCur=+document.getElementById('w_cur').value;
+  const wTgt=+document.getElementById('w_tgt').value;
+  const aCur=+document.getElementById('a_cur').value;
+  const aTgt=+document.getElementById('a_tgt').value;
+  const targetW=Math.max(1,parseInt(document.getElementById('targetWeeks').value)||8);
+
+  let needed={};
+  if(wCur<wTgt) needed=mergeAdd(needed,sumRange(wCur,wTgt,W_MAT,1));
+  if(aCur<aTgt) needed=mergeAdd(needed,sumRange(aCur,aTgt,A_MAT,5));
+
+  const wkRaid=getWeeklyRaid();
+  const wkDung=getWeeklyDungeon();
+  const wkBreath=getWeeklyBreath();
+  const stock=getStock();
+
+  const minWeeks=(k)=>{
+    const need=needed[k]||0; if(need===0) return 0;
+    const held=stock[k]||0;
+    const wkTotal=(wkRaid[k]||0)+(wkDung[k]||0)+(wkBreath[k]||0);
+    const remaining=Math.max(0,need-held);
+    if(remaining===0) return 0;
+    if(wkTotal===0) return 9999;
+    return Math.ceil(remaining/wkTotal);
+  };
+
+  const trackKeys=['파괴석','수호석','돌파석','파편'];
+  const weeksNeeded=Math.max(...trackKeys.map(k=>minWeeks(k)));
+  const achievable=weeksNeeded<=targetW&&weeksNeeded<9999;
+  const statusText=weeksNeeded>=9999?'수급 루트 없음':achievable?`${targetW}주 내 달성 가능`:`${weeksNeeded}주 소요 (${weeksNeeded-targetW}주 부족)`;
+  const statusColor=weeksNeeded>=9999?'#dc2626':achievable?'#059669':'#d97706';
+
+  document.getElementById('summaryGrid').innerHTML=`
+    <div class="metric"><div class="metric-label">필요 주수</div><div class="metric-value" style="color:#1a6ef5">${weeksNeeded>=9999?'∞':weeksNeeded+'주'}</div><div class="metric-sub">보유량 반영</div></div>
+    <div class="metric"><div class="metric-label">목표 주수</div><div class="metric-value">${targetW}주</div></div>
+    <div class="metric"><div class="metric-label">달성 여부</div><div class="metric-value" style="font-size:13px;padding-top:6px;color:${statusColor}">${statusText}</div></div>
+  `;
+
+  document.getElementById('matBody').innerHTML=MAT_ROWS.map(m=>{
+    const need=Math.round(needed[m.k]||0);
+    if(need===0) return '';
+    const held=stock[m.k]||0;
+    const raidPer=m.fromRaid?(wkRaid[m.k]||0):0;
+    const dungPer=m.fromDung?(wkDung[m.k]||0):0;
+    const breathPer=m.fromBreath?(wkBreath[m.k]||0):0;
+    const raidTotal=raidPer*targetW;
+    const dungTotal=dungPer*targetW;
+    const breathTotal=breathPer*targetW;
+    const totalAvail=held+raidTotal+dungTotal+breathTotal;
+    const diff=totalAvail-need;
+    const ratio=need>0?Math.min(totalAvail/need,1):1;
+    const pct=Math.round(ratio*100);
+    const barClass=pct>=100?'bar-ok':pct>=70?'bar-warn':'bar-err';
+    const pillClass=pct>=100?'pill-ok':pct>=70?'pill-warn':'pill-err';
+    const isGoldShortfall=m.gold&&diff<0;
+    const diffColor=diff>=0?'#059669':isGoldShortfall?'#d97706':'#dc2626';
+    const diffStr=diff>=0?`+${Math.round(diff).toLocaleString()}`:`${Math.round(diff).toLocaleString()}`;
+    const raidCell=raidPer>0?`${Math.round(raidTotal).toLocaleString()}<span style="font-size:10px;color:#aaa"> (${raidPer}/주)</span>`:'—';
+    const dungCell=dungPer>0?`${Math.round(dungTotal).toLocaleString()}<span style="font-size:10px;color:#aaa"> (${dungPer}/주)</span>`:'—';
+    const breathCell=breathPer>0?`${Math.round(breathTotal).toLocaleString()}<span style="font-size:10px;color:#aaa"> (${breathPer}/주)</span>`:'—';
+    const achieveCell=m.gold
+      ?`<div class="bar-wrap"><div class="bar-bg"><div class="bar-fill ${barClass}" style="width:${pct}%"></div></div><span class="pill ${pct>=100?'pill-ok':'pill-warn'}">골드</span></div>`
+      :`<div class="bar-wrap"><div class="bar-bg"><div class="bar-fill ${barClass}" style="width:${pct}%"></div></div><span class="pill ${pillClass}">${pct}%</span></div>`;
+    return `<tr><td>${m.name}</td><td>${need.toLocaleString()}</td><td>${held.toLocaleString()}</td><td>${raidCell}</td><td>${dungCell}</td><td>${breathCell}</td><td>${Math.round(totalAvail).toLocaleString()}</td><td style="color:${diffColor};font-weight:500">${diffStr}</td><td>${achieveCell}</td></tr>`;
+  }).join('');
+}
+
+buildSelects();buildStock();buildRaids();buildDungeon();buildBreath();calculate();
+</script>
+</body>
+</html>
