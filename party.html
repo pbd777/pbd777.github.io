@@ -153,14 +153,14 @@ select{min-width:140px;cursor:pointer;}
 <script>
 const RAIDS={
   "성심당":[
-    {label:"3단계",minIlvl:1750,maxIlvl:null,topTier:true,sheetKey:"성심당",sheetVal:"3단계"},
-    {label:"2단계",minIlvl:1720,maxIlvl:1750,topTier:false,sheetKey:"성심당",sheetVal:"2단계"},
-    {label:"1단계",minIlvl:1700,maxIlvl:1720,topTier:false,sheetKey:"성심당",sheetVal:"1단계"}
+    {label:"3단계",minIlvl:1750,topTier:true,sheetKey:"성심당",sheetVal:"3단계"},
+    {label:"2단계",minIlvl:1720,topTier:false,sheetKey:"성심당",sheetVal:"2단계"},
+    {label:"1단계",minIlvl:1700,topTier:false,sheetKey:"성심당",sheetVal:"1단계"}
   ],
   "세르카":[
-    {label:"나이트메어",minIlvl:1740,maxIlvl:null,topTier:true,sheetKey:"세르카",sheetVal:"나이트메어"},
-    {label:"하드",minIlvl:1730,maxIlvl:1740,topTier:false,sheetKey:"세르카",sheetVal:"하드"},
-    {label:"노말",minIlvl:1710,maxIlvl:1730,topTier:false,sheetKey:"세르카",sheetVal:"노말"}
+    {label:"나이트메어",minIlvl:1740,topTier:true,sheetKey:"세르카",sheetVal:"나이트메어"},
+    {label:"하드",minIlvl:1730,topTier:false,sheetKey:"세르카",sheetVal:"하드"},
+    {label:"노말",minIlvl:1710,topTier:false,sheetKey:"세르카",sheetVal:"노말"}
   ]
 };
 const SUPPORTS=["바드","홀나","도화가","발키리"];
@@ -261,7 +261,7 @@ function parseSheetData(rows){
 function charFits(c){
   if(!currentDiff)return false;
   if(c.ilvl<currentDiff.minIlvl)return false;
-  if(currentDiff.maxIlvl!==null&&c.ilvl>=currentDiff.maxIlvl)return false;
+  
   return String(c[currentDiff.sheetKey]||"").trim()===currentDiff.sheetVal;
 }
 function getEligibleChars(name){
@@ -286,7 +286,7 @@ function onDiffChange(){
   const lr=document.getElementById("levelReq");
   if(!raid||!diff){lr.style.display="none";currentDiff=null;return;}
   currentDiff=RAIDS[raid].find(d=>d.label===diff);
-  lr.textContent=`아이템 레벨 ${currentDiff.maxIlvl?`${currentDiff.minIlvl}~${currentDiff.maxIlvl-1}`:`${currentDiff.minIlvl}+`}`;
+  lr.textContent=`아이템 레벨 ${currentDiff.minIlvl}+`;
   lr.style.display="inline-block";
   renderMembers();buildParties();
 }
