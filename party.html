@@ -1,0 +1,424 @@
+
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+.app { padding: 1rem 0; font-family: var(--font-sans); }
+.section-label { font-size: 11px; color: var(--color-text-secondary); font-weight: 500; margin-bottom: 8px; letter-spacing: 0.05em; text-transform: uppercase; }
+.card { background: var(--color-background-primary); border: 0.5px solid var(--color-border-tertiary); border-radius: var(--border-radius-lg); padding: 1rem 1.25rem; margin-bottom: 12px; }
+.row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin-bottom: 12px; }
+select { height: 34px; border-radius: var(--border-radius-md); border: 0.5px solid var(--color-border-secondary); background: var(--color-background-primary); color: var(--color-text-primary); font-size: 13px; padding: 0 8px; min-width: 130px; }
+.member-grid { display: flex; flex-wrap: wrap; gap: 6px; }
+.member-chip { display: flex; align-items: center; gap: 5px; padding: 4px 10px; border-radius: var(--border-radius-md); border: 0.5px solid var(--color-border-secondary); cursor: pointer; font-size: 12px; background: var(--color-background-secondary); color: var(--color-text-secondary); user-select: none; }
+.member-chip.active { background: #E6F1FB; border-color: #85B7EB; color: #0C447C; }
+.member-chip.active .dot { background: #378ADD; }
+.dot { width: 6px; height: 6px; border-radius: 50%; background: var(--color-border-secondary); flex-shrink: 0; }
+.btn { height: 34px; padding: 0 14px; border-radius: var(--border-radius-md); border: 0.5px solid var(--color-border-secondary); background: var(--color-background-primary); color: var(--color-text-primary); font-size: 12px; cursor: pointer; }
+.btn:hover { background: var(--color-background-secondary); }
+.btn-primary { background: #378ADD; border-color: #185FA5; color: #fff; font-weight: 500; }
+.btn-primary:hover { background: #185FA5; }
+.parties-wrap { display: flex; flex-direction: column; gap: 14px; }
+.party-block { border: 0.5px solid var(--color-border-tertiary); border-radius: var(--border-radius-lg); overflow: hidden; }
+.party-header { display: flex; justify-content: space-between; align-items: center; padding: 8px 14px; background: var(--color-background-secondary); border-bottom: 0.5px solid var(--color-border-tertiary); }
+.party-header-left { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.party-title { font-size: 13px; font-weight: 500; color: var(--color-text-primary); }
+.party-meta { font-size: 11px; color: var(--color-text-secondary); }
+.badge { display: inline-block; font-size: 10px; padding: 2px 7px; border-radius: var(--border-radius-md); }
+.badge-sup { background: #E1F5EE; color: #0F6E56; }
+.badge-short { background: #E6F1FB; color: #185FA5; }
+.badge-bsam { background: #EAF3DE; color: #3B6D11; }
+.badge-warn { background: #FAEEDA; color: #854F0B; }
+.btn-remove { height: 24px; padding: 0 8px; border-radius: var(--border-radius-md); border: 0.5px solid var(--color-border-secondary); background: transparent; color: var(--color-text-secondary); font-size: 11px; cursor: pointer; }
+.btn-remove:hover { background: #FCEBEB; border-color: #F09595; color: #A32D2D; }
+.slot-grid { display: flex; }
+.party-slot { flex: 1; min-width: 0; padding: 10px 12px; border-right: 0.5px solid var(--color-border-tertiary); background: var(--color-background-primary); }
+.party-slot:last-child { border-right: none; }
+.party-slot.support-slot { background: #E1F5EE; }
+.slot-role { font-size: 10px; color: var(--color-text-secondary); margin-bottom: 3px; }
+.slot-role.sup-role { color: #0F6E56; }
+.slot-name { font-size: 13px; font-weight: 500; color: var(--color-text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.slot-cls { font-size: 11px; color: var(--color-text-secondary); margin-top: 1px; }
+.slot-ilvl { font-size: 11px; color: #185FA5; font-weight: 500; margin-top: 1px; }
+.slot-sel { width: 100%; margin-top: 6px; font-size: 11px; height: 26px; padding: 0 4px; border-radius: 4px; border: 0.5px solid var(--color-border-secondary); background: var(--color-background-primary); color: var(--color-text-primary); }
+.empty-label { font-size: 11px; color: var(--color-text-secondary); margin-top: 4px; }
+.divider { border: none; border-top: 0.5px solid var(--color-border-tertiary); margin: 12px 0; }
+.stat-grid { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.stat-pill { background: var(--color-background-secondary); border-radius: var(--border-radius-md); padding: 6px 12px; font-size: 12px; display: flex; gap: 4px; align-items: baseline; }
+.stat-pill-name { color: var(--color-text-secondary); font-size: 11px; margin-right: 2px; }
+.stat-pill-cur { font-weight: 500; color: var(--color-text-primary); }
+.stat-pill-max { font-size: 11px; color: var(--color-text-secondary); }
+.stat-pill-full { color: #0F6E56; }
+.summary-row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-bottom: 0; }
+.summary-num { font-size: 22px; font-weight: 500; color: var(--color-text-primary); }
+.summary-sub { font-size: 12px; color: var(--color-text-secondary); }
+.top-btns { display: flex; gap: 8px; }
+</style>
+<div class="app">
+<div class="card">
+  <div class="section-label">레이드 선택</div>
+  <div class="row">
+    <select id="raidSel" onchange="onRaidChange()">
+      <option value="">-- 레이드 --</option>
+      <option value="성심당">성심당</option>
+      <option value="세르카">세르카</option>
+    </select>
+    <select id="diffSel" onchange="onDiffChange()">
+      <option value="">-- 난이도 --</option>
+    </select>
+    <span id="levelReq" style="font-size:12px;color:var(--color-text-secondary);"></span>
+  </div>
+  <div class="section-label">참여 멤버</div>
+  <div class="member-grid" id="memberGrid"></div>
+</div>
+<div id="resultCard" style="display:none;">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+    <div class="summary-row">
+      <span class="summary-num" id="partyCountLabel">0</span>
+      <span class="summary-sub">파티 구성</span>
+    </div>
+    <div class="top-btns">
+      <button class="btn" onclick="addEmptyParty()">+ 파티 추가</button>
+      <button class="btn btn-primary" onclick="buildParties()">다시 추천 ↺</button>
+    </div>
+  </div>
+  <div class="parties-wrap" id="partiesWrap"></div>
+  <hr class="divider">
+  <div class="section-label">멤버별 참여 횟수</div>
+  <div class="stat-grid" id="statGrid"></div>
+</div>
+</div>
+<script>
+const RAIDS={
+  "성심당":[
+    {label:"3단계",minIlvl:1750,maxIlvl:null,topTier:true},
+    {label:"2단계",minIlvl:1720,maxIlvl:1750,topTier:false},
+    {label:"1단계",minIlvl:1700,maxIlvl:1720,topTier:false}
+  ],
+  "세르카":[
+    {label:"나이트메어",minIlvl:1740,maxIlvl:null,topTier:true},
+    {label:"하드",minIlvl:1730,maxIlvl:1740,topTier:false},
+    {label:"노말",minIlvl:1710,maxIlvl:1730,topTier:false}
+  ]
+};
+const SUPPORTS=["바드","홀나","도화가","발키리"];
+const BSAM=["창술사","블레","슬레"];
+const TEAM_A_SINGLE=["민트치킨","전복치킨"];
+const TEAM_A_MULTI=["카페룽고","잼둘냥"];
+const TEAM_B_SINGLE=["남제나","포지셔닝"];
+const TEAM_B_MULTI=["아즈웬","신카"];
+const MEMBERS_RAW=[
+  {name:"카페룽고",chars:[{cls:"워로드",ilvl:1750},{cls:"워로드",ilvl:1750},{cls:"블레",ilvl:1750},{cls:"창술사",ilvl:1750},{cls:"홀나",ilvl:1750},{cls:"도화가",ilvl:1750},{cls:"가나",ilvl:1710},{cls:"디트",ilvl:1710},{cls:"워로드",ilvl:1710},{cls:"워로드",ilvl:1710}]},
+  {name:"잼둘냥",chars:[{cls:"창술사",ilvl:1770},{cls:"브커",ilvl:1750},{cls:"홀나",ilvl:1740},{cls:"도화가",ilvl:1730},{cls:"가나",ilvl:1720},{cls:"건슬",ilvl:1720}]},
+  {name:"민트치킨",chars:[{cls:"블레",ilvl:1770},{cls:"데헌",ilvl:1740},{cls:"리퍼",ilvl:1730},{cls:"슬레",ilvl:1730},{cls:"도화가",ilvl:1720}]},
+  {name:"전복치킨",chars:[{cls:"바드",ilvl:1760},{cls:"도화가",ilvl:1740},{cls:"발키리",ilvl:1740},{cls:"소서",ilvl:1730},{cls:"기상",ilvl:1720},{cls:"건슬",ilvl:1720}]},
+  {name:"아즈웬",chars:[{cls:"기공",ilvl:1790},{cls:"기공",ilvl:1750},{cls:"배마",ilvl:1750},{cls:"슬레",ilvl:1750},{cls:"도화가",ilvl:1750},{cls:"발키리",ilvl:1750},{cls:"가나",ilvl:1740},{cls:"바드",ilvl:1720},{cls:"기상",ilvl:1700}]},
+  {name:"신카",chars:[{cls:"알카",ilvl:1770},{cls:"환수사",ilvl:1750},{cls:"블레",ilvl:1750},{cls:"알카",ilvl:1750},{cls:"소울",ilvl:1750},{cls:"홀나",ilvl:1750},{cls:"가나",ilvl:1710}]},
+  {name:"남제나",chars:[{cls:"서머너",ilvl:1770},{cls:"알카",ilvl:1720},{cls:"소서",ilvl:1710}]},
+  {name:"포지셔닝",chars:[{cls:"바드",ilvl:1760},{cls:"서머너",ilvl:1710},{cls:"바드",ilvl:1710}]}
+];
+const MEMBER_ORDER=MEMBERS_RAW.map(m=>m.name);
+let selectedMembers=new Set(MEMBER_ORDER);
+let currentDiff=null;
+let partyCounts={};
+let allParties=[];
+let maxCharsPerMember={};
+
+function isSupport(cls){return SUPPORTS.includes(cls);}
+function isBsam(cls){return BSAM.includes(cls);}
+function memberOrderIdx(n){return MEMBER_ORDER.indexOf(n);}
+function charFits(c){
+  if(!currentDiff)return false;
+  if(c.ilvl<currentDiff.minIlvl)return false;
+  if(currentDiff.maxIlvl!==null&&c.ilvl>=currentDiff.maxIlvl)return false;
+  return true;
+}
+function getEligibleChars(name){
+  const m=MEMBERS_RAW.find(x=>x.name===name);
+  if(!m)return[];
+  return m.chars.filter(c=>charFits(c)).map((c,i)=>({...c,member:name,uid:name+"_"+i}));
+}
+function filledCount(slots){return slots.filter(s=>s).length;}
+
+function onRaidChange(){
+  const raid=document.getElementById("raidSel").value;
+  const ds=document.getElementById("diffSel");
+  ds.innerHTML='<option value="">-- 난이도 --</option>';
+  document.getElementById("levelReq").textContent="";
+  document.getElementById("resultCard").style.display="none";
+  currentDiff=null;
+  if(!raid)return;
+  RAIDS[raid].forEach(d=>{const o=document.createElement("option");o.value=d.label;o.textContent=d.label;ds.appendChild(o);});
+}
+function onDiffChange(){
+  const raid=document.getElementById("raidSel").value;
+  const diff=document.getElementById("diffSel").value;
+  document.getElementById("resultCard").style.display="none";
+  if(!raid||!diff){document.getElementById("levelReq").textContent="";currentDiff=null;return;}
+  currentDiff=RAIDS[raid].find(d=>d.label===diff);
+  const r=currentDiff.maxIlvl?`${currentDiff.minIlvl} ~ ${currentDiff.maxIlvl-1}`:`${currentDiff.minIlvl}+`;
+  document.getElementById("levelReq").textContent=`아이템 레벨 ${r}`;
+  renderMembers();buildParties();
+}
+function renderMembers(){
+  const grid=document.getElementById("memberGrid");grid.innerHTML="";
+  MEMBERS_RAW.forEach(m=>{
+    const el=getEligibleChars(m.name);
+    const chip=document.createElement("div");
+    chip.className="member-chip"+(selectedMembers.has(m.name)?" active":"");
+    chip.innerHTML=`<span class="dot"></span><span>${m.name}</span><span style="font-size:10px;opacity:0.75">${el.length}캐</span>`;
+    chip.onclick=()=>{if(selectedMembers.has(m.name))selectedMembers.delete(m.name);else selectedMembers.add(m.name);renderMembers();if(currentDiff)buildParties();};
+    grid.appendChild(chip);
+  });
+}
+
+function makeParty(){return{slots:[],usedMember:new Set(),usedCls:new Set(),bsamCount:0};}
+function addSlot(p,ch,usedUids){
+  p.slots.push(ch);
+  p.usedMember.add(ch.member);p.usedCls.add(ch.cls);
+  if(isBsam(ch.cls))p.bsamCount++;
+  usedUids.add(ch.uid);
+}
+function sortP(p){
+  p.slots.sort((a,b)=>memberOrderIdx(a.member)-memberOrderIdx(b.member));
+  while(p.slots.length<4)p.slots.push(null);
+}
+function partyAvg(slots){
+  const f=slots.filter(s=>s);
+  return f.length?f.reduce((s,c)=>s+c.ilvl,0)/f.length:0;
+}
+function pickDealer(name,p,usedUids,priority){
+  let chars=getEligibleChars(name).filter(c=>!usedUids.has(c.uid)&&!isSupport(c.cls));
+  if(!chars.length)return null;
+  chars.sort((a,b)=>priority==='lowest'?a.ilvl-b.ilvl:b.ilvl-a.ilvl);
+  return chars.find(c=>!p.usedCls.has(c.cls)&&!(isBsam(c.cls)&&p.bsamCount>=2))
+    ||chars.find(c=>!p.usedCls.has(c.cls))||chars[0];
+}
+function tryAssignSupport(p,order,usedUids){
+  const cand=order.filter(n=>selectedMembers.has(n)&&!p.usedMember.has(n)&&getEligibleChars(n).some(c=>!usedUids.has(c.uid)&&isSupport(c.cls)));
+  if(!cand.length)return false;
+  const name=cand[0];
+  const ch=getEligibleChars(name).filter(c=>!usedUids.has(c.uid)&&isSupport(c.cls)).sort((a,b)=>b.ilvl-a.ilvl)[0];
+  addSlot(p,ch,usedUids);return true;
+}
+function balanceParties(parties,freeFrom){
+  let improved=true,iter=0;
+  while(improved&&iter<200){
+    improved=false;iter++;
+    let maxPi=-1,minPi=-1,maxA=-Infinity,minA=Infinity;
+    for(let i=freeFrom;i<parties.length;i++){
+      const a=partyAvg(parties[i].slots);
+      if(a>maxA){maxA=a;maxPi=i;}
+      if(a>0&&a<minA){minA=a;minPi=i;}
+    }
+    if(maxPi<0||minPi<0||maxPi===minPi||maxA-minA<5)break;
+    const hp=parties[maxPi],lp=parties[minPi];
+    let best=null,bestGain=0;
+    hp.slots.forEach((hs,hsi)=>{
+      if(!hs||isSupport(hs.cls))return;
+      lp.slots.forEach((ls,lsi)=>{
+        if(!ls||isSupport(ls.cls))return;
+        if(hs.member!==ls.member||hs.ilvl<=ls.ilvl)return;
+        const hf=hp.slots.filter(s=>s),lf=lp.slots.filter(s=>s);
+        const nha=(hf.reduce((s,c)=>s+c.ilvl,0)-hs.ilvl+ls.ilvl)/hf.length;
+        const nla=(lf.reduce((s,c)=>s+c.ilvl,0)-ls.ilvl+hs.ilvl)/lf.length;
+        const gain=(maxA-minA)-Math.abs(nha-nla);
+        if(gain>bestGain){bestGain=gain;best={hsi,lsi,hs,ls};}
+      });
+    });
+    if(best&&bestGain>0){hp.slots[best.hsi]=best.ls;lp.slots[best.lsi]=best.hs;improved=true;}
+  }
+}
+
+function buildFreeParties(usedUids,mCnt){
+  const rDQ={},rSQ={};
+  MEMBER_ORDER.filter(n=>selectedMembers.has(n)).forEach(n=>{
+    rDQ[n]=getEligibleChars(n).filter(c=>!usedUids.has(c.uid)&&!isSupport(c.cls)).sort((a,b)=>a.ilvl-b.ilvl);
+    rSQ[n]=getEligibleChars(n).filter(c=>!usedUids.has(c.uid)&&isSupport(c.cls)).sort((a,b)=>b.ilvl-a.ilvl);
+  });
+  const parties=[];
+  const hasRemain=()=>MEMBER_ORDER.some(n=>selectedMembers.has(n)&&((rDQ[n]&&rDQ[n].length>0)||(rSQ[n]&&rSQ[n].length>0)));
+  while(hasRemain()){
+    const ep=makeParty();
+    const supCand=MEMBER_ORDER
+      .filter(n=>selectedMembers.has(n)&&!ep.usedMember.has(n)&&rSQ[n]&&rSQ[n].length>0)
+      .sort((a,b)=>{const d=(mCnt[a]||0)-(mCnt[b]||0);return d!==0?d:memberOrderIdx(a)-memberOrderIdx(b);});
+    if(supCand.length>0){
+      const name=supCand[0];const ch=rSQ[name][0];
+      addSlot(ep,ch,usedUids);rSQ[name].shift();mCnt[name]=(mCnt[name]||0)+1;
+    }
+    while(ep.slots.filter(s=>s).length<4){
+      const cands=MEMBER_ORDER
+        .filter(n=>selectedMembers.has(n)&&rDQ[n]&&rDQ[n].length>0&&!ep.usedMember.has(n))
+        .sort((a,b)=>{const d=(mCnt[a]||0)-(mCnt[b]||0);return d!==0?d:memberOrderIdx(a)-memberOrderIdx(b);});
+      if(!cands.length)break;
+      let picked=null,pickedChar=null;
+      outer1:for(const n of cands){for(const ch of rDQ[n]){if(ep.usedCls.has(ch.cls))continue;if(isBsam(ch.cls)&&ep.bsamCount>=2)continue;picked=n;pickedChar=ch;break outer1;}}
+      if(!picked){outer2:for(const n of cands){for(const ch of rDQ[n]){if(ep.usedCls.has(ch.cls))continue;picked=n;pickedChar=ch;break outer2;}}}
+      if(!picked){picked=cands[0];pickedChar=rDQ[picked][0];}
+      if(picked&&pickedChar){
+        addSlot(ep,pickedChar,usedUids);
+        rDQ[picked]=rDQ[picked].filter(c=>c.uid!==pickedChar.uid);
+        mCnt[picked]=(mCnt[picked]||0)+1;
+      } else break;
+    }
+    sortP(ep);
+    // ── 핵심: 실제 캐릭터가 2명 이상인 파티만 추가 ──
+    if(filledCount(ep.slots)>=2) parties.push(ep);
+    else break;
+  }
+  return parties;
+}
+
+function buildParties(){
+  if(!currentDiff)return;
+  maxCharsPerMember={};
+  MEMBER_ORDER.filter(n=>selectedMembers.has(n)).forEach(n=>{maxCharsPerMember[n]=getEligibleChars(n).length;});
+  const usedUids=new Set();
+  const mCnt={};MEMBER_ORDER.forEach(n=>{mCnt[n]=0;});
+  let allP=[];
+
+  if(currentDiff.topTier){
+    const p1=makeParty();
+    tryAssignSupport(p1,[...TEAM_A_SINGLE,...TEAM_A_MULTI],usedUids);
+    for(const n of TEAM_A_SINGLE.filter(n=>selectedMembers.has(n)&&!p1.usedMember.has(n))){
+      if(p1.slots.length>=4)break;
+      const ch=pickDealer(n,p1,usedUids,'highest');if(ch)addSlot(p1,ch,usedUids);
+    }
+    for(const n of TEAM_A_MULTI.filter(n=>selectedMembers.has(n)&&!p1.usedMember.has(n))){
+      if(p1.slots.length>=4)break;
+      const ch=pickDealer(n,p1,usedUids,'lowest');if(ch)addSlot(p1,ch,usedUids);
+    }
+    sortP(p1);
+    p1.slots.forEach(s=>{if(s)mCnt[s.member]=(mCnt[s.member]||0)+1;});
+
+    const p2=makeParty();
+    tryAssignSupport(p2,[...TEAM_B_SINGLE,...TEAM_B_MULTI],usedUids);
+    for(const n of TEAM_B_SINGLE.filter(n=>selectedMembers.has(n)&&!p2.usedMember.has(n))){
+      if(p2.slots.length>=4)break;
+      const ch=pickDealer(n,p2,usedUids,'highest');if(ch)addSlot(p2,ch,usedUids);
+    }
+    for(const n of TEAM_B_MULTI.filter(n=>selectedMembers.has(n)&&!p2.usedMember.has(n))){
+      if(p2.slots.length>=4)break;
+      const ch=pickDealer(n,p2,usedUids,'lowest');if(ch)addSlot(p2,ch,usedUids);
+    }
+    sortP(p2);
+    p2.slots.forEach(s=>{if(s)mCnt[s.member]=(mCnt[s.member]||0)+1;});
+
+    const extras=buildFreeParties(usedUids,mCnt);
+    // 파티1, 2도 1명이면 제거
+    const fixed=[p1,p2].filter(p=>filledCount(p.slots)>=2);
+    allP=[...fixed,...extras];
+    balanceParties(allP, fixed.length);
+  } else {
+    const freeParties=buildFreeParties(usedUids,mCnt);
+    allP=freeParties;
+    balanceParties(allP,0);
+  }
+
+  allParties=allP.map(p=>p.slots);
+  recalcCounts();
+  document.getElementById("partyCountLabel").textContent=allParties.length;
+  renderParties();renderStats();
+  document.getElementById("resultCard").style.display="block";
+}
+
+function recalcCounts(){
+  partyCounts={};MEMBERS_RAW.forEach(m=>{partyCounts[m.name]=0;});
+  allParties.forEach(slots=>slots.forEach(s=>{if(s)partyCounts[s.member]=(partyCounts[s.member]||0)+1;}));
+}
+function addEmptyParty(){allParties.push([null,null,null,null]);document.getElementById("partyCountLabel").textContent=allParties.length;renderParties();}
+function removeParty(pi){allParties.splice(pi,1);recalcCounts();document.getElementById("partyCountLabel").textContent=allParties.length;renderParties();renderStats();}
+
+function getSlotOptions(pi,si){
+  const cur=allParties[pi][si];
+  const otherUids=new Set();
+  allParties.forEach((slots,pii)=>slots.forEach((s,sii)=>{if(s&&!(pii===pi&&sii===si))otherUids.add(s.uid);}));
+  const sameMembers=new Set();
+  allParties[pi].forEach((s,sii)=>{if(s&&sii!==si)sameMembers.add(s.member);});
+  let pool=[];
+  [...selectedMembers].forEach(name=>{
+    getEligibleChars(name).forEach(c=>{
+      if(otherUids.has(c.uid))return;
+      if(sameMembers.has(c.member)&&!(cur&&c.uid===cur.uid))return;
+      pool.push(c);
+    });
+  });
+  if(cur)pool.push(cur);
+  pool=pool.filter((c,i,arr)=>arr.findIndex(x=>x.uid===c.uid)===i);
+  return pool.sort((a,b)=>b.ilvl-a.ilvl);
+}
+function avgIlvl(slots){const f=slots.filter(s=>s);return f.length?Math.round(f.reduce((s,c)=>s+c.ilvl,0)/f.length):0;}
+function partyBadges(slots){
+  const clsCnt={},memberCnt={};let bsamCnt=0;
+  const hasSupp=slots.some(s=>s&&isSupport(s.cls));
+  slots.filter(s=>s).forEach(s=>{clsCnt[s.cls]=(clsCnt[s.cls]||0)+1;memberCnt[s.member]=(memberCnt[s.member]||0)+1;if(isBsam(s.cls))bsamCnt++;});
+  const warns=[];
+  if(Object.values(clsCnt).some(v=>v>1))warns.push("직업 중복");
+  if(Object.values(memberCnt).some(v=>v>1))warns.push("멤버 중복");
+  if(bsamCnt>2)warns.push("백사멸 3개+");
+  const cnt=slots.filter(s=>s).length;
+  return{hasSupp,warns,bsamCnt,cnt};
+}
+function renderParties(){
+  const wrap=document.getElementById("partiesWrap");wrap.innerHTML="";
+  allParties.forEach((slots,pi)=>{
+    const avg=avgIlvl(slots);
+    const{hasSupp,warns,bsamCnt,cnt}=partyBadges(slots);
+    const block=document.createElement("div");block.className="party-block";
+    const hdr=document.createElement("div");hdr.className="party-header";
+    let badges='';
+    if(hasSupp)badges+='<span class="badge badge-sup">서포터 있음</span>';
+    if(cnt<4)badges+=`<span class="badge badge-short">${cnt}명</span>`;
+    warns.forEach(w=>{badges+=`<span class="badge badge-warn">${w}</span>`;});
+    if(bsamCnt>0&&bsamCnt<=2)badges+=`<span class="badge badge-bsam">백사멸 ${bsamCnt}</span>`;
+    const left=document.createElement("div");left.className="party-header-left";
+    left.innerHTML=`<span class="party-title">파티 ${pi+1}</span>${badges}`;
+    const right=document.createElement("div");right.style.cssText="display:flex;align-items:center;gap:8px;";
+    if(cnt>0)right.innerHTML=`<span class="party-meta">평균 ${avg}</span>`;
+    const rmBtn=document.createElement("button");rmBtn.className="btn-remove";rmBtn.textContent="삭제";rmBtn.onclick=()=>removeParty(pi);
+    right.appendChild(rmBtn);hdr.appendChild(left);hdr.appendChild(right);block.appendChild(hdr);
+    const slotGrid=document.createElement("div");slotGrid.className="slot-grid";
+    slots.forEach((slot,si)=>{
+      const isSup=slot&&isSupport(slot.cls);
+      const div=document.createElement("div");
+      div.className="party-slot"+(isSup?" support-slot":"");
+      const roleDiv=document.createElement("div");
+      roleDiv.className="slot-role"+(isSup?" sup-role":"");
+      roleDiv.textContent=slot?(isSup?"서포터":`딜러 ${si+1}`):"—";
+      div.appendChild(roleDiv);
+      if(slot){
+        const nm=document.createElement("div");nm.className="slot-name";nm.textContent=slot.member;div.appendChild(nm);
+        const cl=document.createElement("div");cl.className="slot-cls";cl.textContent=slot.cls;div.appendChild(cl);
+        const il=document.createElement("div");il.className="slot-ilvl";il.textContent=slot.ilvl;div.appendChild(il);
+      } else {
+        const em=document.createElement("div");em.className="empty-label";em.textContent="빈 슬롯";div.appendChild(em);
+      }
+      const opts=getSlotOptions(pi,si);
+      const sel=document.createElement("select");sel.className="slot-sel";
+      sel.innerHTML='<option value="">변경...</option>';
+      opts.forEach((o,oi)=>{const opt=document.createElement("option");opt.value=oi;opt.textContent=`${o.member} · ${o.cls} · ${o.ilvl}`;if(slot&&o.uid===slot.uid)opt.selected=true;sel.appendChild(opt);});
+      sel.onchange=()=>{
+        if(sel.value==="")return;
+        const chosen=opts[parseInt(sel.value)];
+        const prev=allParties[pi][si];
+        if(prev)partyCounts[prev.member]=Math.max(0,(partyCounts[prev.member]||1)-1);
+        allParties[pi][si]=chosen;partyCounts[chosen.member]=(partyCounts[chosen.member]||0)+1;
+        renderParties();renderStats();
+      };
+      div.appendChild(sel);
+      slotGrid.appendChild(div);
+    });
+    block.appendChild(slotGrid);wrap.appendChild(block);
+  });
+}
+function renderStats(){
+  const grid=document.getElementById("statGrid");grid.innerHTML="";
+  [...selectedMembers].forEach(name=>{
+    const cur=partyCounts[name]||0;
+    const max=maxCharsPerMember[name]||0;
+    const isFull=max>0&&cur>=max;
+    const d=document.createElement("div");d.className="stat-pill";
+    d.innerHTML=`<span class="stat-pill-name">${name}</span><span class="stat-pill-cur${isFull?' stat-pill-full':''}">${cur}</span><span class="stat-pill-max">/ ${max}</span>`;
+    grid.appendChild(d);
+  });
+}
+renderMembers();
+</script>
