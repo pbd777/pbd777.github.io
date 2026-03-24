@@ -98,6 +98,23 @@ select{min-width:140px;cursor:pointer;}
   .party-slot:nth-child(2){border-right:none;}
   .party-slot:nth-child(3),.party-slot:nth-child(4){border-bottom:none;}
 }
+
+.preset-section { margin-top: 16px; }
+.preset-row { display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-bottom:8px; }
+.preset-list { display:flex; flex-direction:column; gap:6px; margin-top:8px; }
+.preset-item { display:flex; align-items:center; justify-content:space-between; padding:8px 12px; background:var(--surface2); border:1px solid var(--border); border-radius:var(--radius-sm); gap:8px; }
+.preset-item-left { display:flex; flex-direction:column; gap:2px; min-width:0; }
+.preset-item-name { font-size:13px; font-weight:500; color:var(--text); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.preset-item-meta { font-size:11px; color:var(--text3); }
+.preset-item-btns { display:flex; gap:6px; flex-shrink:0; }
+.preset-empty { font-size:12px; color:var(--text3); padding:8px 0; }
+.preset-status { font-size:11px; padding:4px 8px; border-radius:4px; }
+.preset-status-ok  { color:var(--teal); background:var(--teal-bg); }
+.preset-status-err { color:var(--red); background:var(--red-bg); }
+
+.diff-normal { color: var(--text); }
+.diff-hard   { color: #e05c5c; }
+.diff-nightmare { color: #9b6dff; }
 </style>
 </head>
 <body>
@@ -132,12 +149,23 @@ select{min-width:140px;cursor:pointer;}
     <div class="member-grid" id="memberGrid"></div>
   </div>
 
+
+  <div class="card preset-section" id="presetCard" style="display:none;">
+    <div class="section-label">프리셋</div>
+    <div class="preset-row">
+      <button class="btn btn-primary" onclick="savePreset()">현재 구성 저장</button>
+      <button class="btn" onclick="loadPresets()">저장된 프리셋 불러오기 ↺</button>
+      <span id="presetStatus" class="preset-status" style="display:none;"></span>
+    </div>
+    <div class="preset-list" id="presetList"></div>
+  </div>
   <div id="resultCard" style="display:none;">
     <div class="result-header">
       <div>
         <span class="party-count" id="partyCountLabel">0</span>
         <span class="party-count-sub">파티 구성</span>
       </div>
+      <span id="raidLabel" style="font-size:17px;font-weight:700;color:var(--text);"></span>
       <div style="display:flex;gap:8px;">
         <button class="btn" onclick="addEmptyParty()">+ 파티 추가</button>
         <button class="btn btn-primary" onclick="buildParties()">다시 추천 ↺</button>
@@ -428,8 +456,20 @@ function buildParties(){
   allParties=allP.map(p=>p.slots);
   recalcCounts();
   document.getElementById("partyCountLabel").textContent=allParties.length;
+  const raidEmoji = {"성심당":"⛪","세르카":"🧙"};
+  const raidName = document.getElementById("raidSel").value;
+  const diffName = document.getElementById("diffSel").value;
+  const diffClass = {
+    "노말":"diff-normal","1단계":"diff-normal",
+    "하드":"diff-hard","2단계":"diff-hard",
+    "나이트메어":"diff-nightmare","3단계":"diff-nightmare"
+  }[diffName] || "diff-normal";
+  document.getElementById("raidLabel").innerHTML =
+    `<span style="font-weight:700">${(raidEmoji[raidName]||"")} ${raidName}</span> <span class="${diffClass}" style="font-weight:700">${diffName}</span>`;
   renderParties();renderStats();
   document.getElementById("resultCard").style.display="block";
+  document.getElementById("presetCard").style.display="block";
+  loadPresets();
 }
 function recalcCounts(){
   partyCounts={};MEMBERS_RAW.forEach(m=>{partyCounts[m.name]=0;});
@@ -508,11 +548,15 @@ function renderParties(){
         sel.appendChild(opt);
       });
       sel.onchange=()=>{
-        if(!sel.value)return;
-        const chosen=opts[parseInt(sel.value)];
         const prev=allParties[pi][si];
-        if(prev)partyCounts[prev.member]=Math.max(0,(partyCounts[prev.member]||1)-1);
-        allParties[pi][si]=chosen;partyCounts[chosen.member]=(partyCounts[chosen.member]||0)+1;
+        if(sel.value===""){
+          if(prev)partyCounts[prev.member]=Math.max(0,(partyCounts[prev.member]||1)-1);
+          allParties[pi][si]=null;
+        } else {
+          const chosen=opts[parseInt(sel.value)];
+          if(prev)partyCounts[prev.member]=Math.max(0,(partyCounts[prev.member]||1)-1);
+          allParties[pi][si]=chosen;partyCounts[chosen.member]=(partyCounts[chosen.member]||0)+1;
+        }
         renderParties();renderStats();
       };
       div.appendChild(sel);slotGrid.appendChild(div);
@@ -529,6 +573,120 @@ function renderStats(){
     d.innerHTML=`<span class="stat-name">${name}</span><span class="stat-cur${isFull?" stat-full":""}">${cur}</span><span class="stat-max">/ ${max}</span>`;
     grid.appendChild(d);
   });
+}
+
+const APPS_URL = document.querySelector('#sheetUrl') ? null : null; // 런타임에 읽음
+function getUrl(){ return document.getElementById('sheetUrl').value.trim(); }
+
+function presetName(){
+  const now = new Date();
+  const mm = now.getMonth()+1, dd = now.getDate();
+  const raid = document.getElementById('raidSel').value;
+  const diff = document.getElementById('diffSel').value;
+  return `${mm}/${dd} ${raid} ${diff}`;
+}
+
+function showPresetStatus(msg, type){
+  const el = document.getElementById('presetStatus');
+  el.style.display = 'inline-block';
+  el.textContent = msg;
+  el.className = 'preset-status preset-status-' + type;
+  setTimeout(()=>{ el.style.display='none'; }, 3000);
+}
+
+function savePreset(){
+  if(!allParties.length){ showPresetStatus('저장할 파티 구성이 없습니다.','err'); return; }
+  const url = getUrl();
+  const name = presetName();
+  const raid = document.getElementById('raidSel').value;
+  const diff = document.getElementById('diffSel').value;
+  // 파티 데이터 직렬화 (uid 기반으로 저장)
+  const partiesData = allParties.map(slots =>
+    slots.map(slot => slot ? {member:slot.member, cls:slot.cls, ilvl:slot.ilvl, bp:slot.bp, uid:slot.uid, 세르카:slot.세르카, 성심당:slot.성심당} : null)
+  );
+  const members = [...selectedMembers].join(',');
+  fetch(url, {
+    method: 'POST',
+    body: JSON.stringify({ action:'savePreset', name, raid, diff, members, parties: partiesData })
+  })
+  .then(r=>r.json())
+  .then(d=>{ if(d.ok){ showPresetStatus(`'${name}' 저장 완료`,'ok'); loadPresets(); } else showPresetStatus('저장 실패','err'); })
+  .catch(()=>showPresetStatus('저장 실패: 네트워크 오류','err'));
+}
+
+function loadPresets(){
+  const url = getUrl();
+  fetch(url, {
+    method: 'POST',
+    body: JSON.stringify({ action:'loadPresets' })
+  })
+  .then(r=>r.json())
+  .then(data=>{ renderPresetList(data); document.getElementById('presetCard').style.display='block'; })
+  .catch(()=>showPresetStatus('불러오기 실패','err'));
+}
+
+function renderPresetList(presets){
+  const list = document.getElementById('presetList');
+  list.innerHTML = '';
+  if(!presets.length){
+    list.innerHTML = '<div class="preset-empty">저장된 프리셋이 없습니다.</div>';
+    return;
+  }
+  [...presets].reverse().forEach((p,i)=>{
+    const idx = presets.length - 1 - i;
+    const item = document.createElement('div'); item.className='preset-item';
+    const left = document.createElement('div'); left.className='preset-item-left';
+    left.innerHTML = `<span class="preset-item-name">${p.name}</span><span class="preset-item-meta">${p.savedAt} · ${p.raid} ${p.diff}</span>`;
+    const btns = document.createElement('div'); btns.className='preset-item-btns';
+    const loadBtn = document.createElement('button'); loadBtn.className='btn btn-sm btn-primary'; loadBtn.textContent='불러오기';
+    loadBtn.onclick = ()=>applyPreset(p);
+    const delBtn = document.createElement('button'); delBtn.className='btn btn-sm'; delBtn.textContent='삭제';
+    delBtn.style.cssText='color:var(--red);border-color:#F09595;';
+    delBtn.onclick = ()=>deletePreset(p);
+    btns.appendChild(loadBtn); btns.appendChild(delBtn);
+    item.appendChild(left); item.appendChild(btns);
+    list.appendChild(item);
+  });
+}
+
+function applyPreset(p){
+  // 레이드/난이도 복원
+  const raidSel = document.getElementById('raidSel');
+  raidSel.value = p.raid; onRaidChange();
+  const diffSel = document.getElementById('diffSel');
+  diffSel.value = p.diff; onDiffChange();
+  // 멤버 복원
+  if(p.members){
+    const mList = p.members.split(',').map(s=>s.trim()).filter(Boolean);
+    selectedMembers = new Set(mList);
+    renderMembers();
+  }
+  // 파티 복원
+  allParties = p.parties.map(slots =>
+    slots.map(slot => {
+      if(!slot) return null;
+      return { member:slot.member, cls:slot.cls, ilvl:slot.ilvl, bp:slot.bp, uid:slot.uid, 세르카:slot.세르카, 성심당:slot.성심당 };
+    })
+  );
+  recalcCounts();
+  // maxCharsPerMember 재계산
+  MEMBER_ORDER.filter(n=>selectedMembers.has(n)).forEach(n=>{ maxCharsPerMember[n]=getEligibleChars(n).length; });
+  document.getElementById('partyCountLabel').textContent = allParties.length;
+  renderParties(); renderStats();
+  document.getElementById('resultCard').style.display='block';
+  showPresetStatus(`'${p.name}' 불러오기 완료`,'ok');
+}
+
+function deletePreset(p){
+  if(!confirm(`'${p.name}' 프리셋을 삭제할까요?`)) return;
+  const url = getUrl();
+  fetch(url, {
+    method: 'POST',
+    body: JSON.stringify({ action:'deletePreset', name:p.name, savedAt:p.savedAt })
+  })
+  .then(r=>r.json())
+  .then(()=>{ showPresetStatus('삭제 완료','ok'); loadPresets(); })
+  .catch(()=>showPresetStatus('삭제 실패','err'));
 }
 </script>
 </body>
