@@ -7,36 +7,23 @@
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
 <style>
 :root {
-  --bg:#f5f6fa;
-  --surface:#ffffff;
-  --surface2:#f0f2f8;
-  --border:#e2e5f0;
-  --border2:#c8ccdd;
-  --text:#1a1d2e;
-  --text2:#5a607a;
-  --text3:#9298b0;
-  --accent:#378ADD;
-  --accent2:#185FA5;
-  --teal:#0F6E56;
-  --teal-bg:#E1F5EE;
-  --teal-border:#9FE1CB;
-  --amber:#854F0B;
-  --amber-bg:#FAEEDA;
-  --red:#A32D2D;
-  --red-bg:#FCEBEB;
-  --green:#3B6D11;
-  --green-bg:#EAF3DE;
-  --sup-bg:#E1F5EE;
-  --sup-border:#9FE1CB;
-  --radius:10px;
-  --radius-sm:6px;
+  --bg:#f5f6fa; --surface:#fff; --surface2:#f0f2f8;
+  --border:#e2e5f0; --border2:#c8ccdd;
+  --text:#1a1d2e; --text2:#5a607a; --text3:#9298b0;
+  --accent:#378ADD; --accent2:#185FA5;
+  --teal:#0F6E56; --teal-bg:#E1F5EE; --teal-border:#9FE1CB;
+  --amber:#854F0B; --amber-bg:#FAEEDA;
+  --red:#A32D2D; --red-bg:#FCEBEB;
+  --green:#3B6D11; --green-bg:#EAF3DE;
+  --sup-bg:#E1F5EE; --sup-border:#9FE1CB;
+  --radius:10px; --radius-sm:6px;
 }
 *{box-sizing:border-box;margin:0;padding:0;}
 body{font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;padding:24px 16px 60px;}
-.container{max-width:960px;margin:0 auto;}
-h1{font-size:20px;font-weight:700;margin-bottom:4px;color:var(--text);}
-.subtitle{font-size:12px;color:var(--text3);margin-bottom:24px;}
-.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:16px 20px;margin-bottom:12px;box-shadow:0 1px 4px rgba(0,0,0,0.06);}
+.container{max-width:1100px;margin:0 auto;}
+h1{font-size:20px;font-weight:700;margin-bottom:4px;}
+.subtitle{font-size:12px;color:var(--text3);margin-bottom:20px;}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:16px 20px;margin-bottom:12px;box-shadow:0 1px 4px rgba(0,0,0,.06);}
 .section-label{font-size:10px;font-weight:700;color:var(--text3);letter-spacing:.08em;text-transform:uppercase;margin-bottom:10px;}
 .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:12px;}
 .row:last-child{margin-bottom:0;}
@@ -56,17 +43,27 @@ select{min-width:140px;cursor:pointer;}
 .member-grid{display:flex;flex-wrap:wrap;gap:6px;}
 .member-chip{display:flex;align-items:center;gap:5px;padding:4px 10px;border-radius:20px;border:1px solid var(--border2);cursor:pointer;font-size:12px;background:var(--surface2);color:var(--text2);user-select:none;transition:all .12s;}
 .member-chip.active{background:#E6F1FB;border-color:#85B7EB;color:#0C447C;}
-.member-chip .dot{width:6px;height:6px;border-radius:50%;background:var(--border2);flex-shrink:0;transition:background .12s;}
+.member-chip .dot{width:6px;height:6px;border-radius:50%;background:var(--border2);flex-shrink:0;}
 .member-chip.active .dot{background:var(--accent);}
 .level-req{font-size:11px;color:var(--text3);padding:4px 10px;background:var(--surface2);border-radius:4px;border:1px solid var(--border);}
+
+/* 탭 */
+.tabs{display:flex;gap:0;border-bottom:2px solid var(--border);margin-bottom:16px;}
+.tab-btn{padding:8px 20px;font-size:13px;font-weight:500;color:var(--text3);background:none;border:none;border-bottom:2px solid transparent;margin-bottom:-2px;cursor:pointer;transition:all .15s;font-family:inherit;}
+.tab-btn.active{color:var(--accent);border-bottom-color:var(--accent);}
+.tab-btn:hover{color:var(--text);}
+.tab-panel{display:none;}
+.tab-panel.active{display:block;}
+
+/* 자동 추천 탭 */
 .result-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;}
-.party-count{font-size:28px;font-weight:700;color:var(--text);}
+.party-count{font-size:28px;font-weight:700;}
 .party-count-sub{font-size:12px;color:var(--text3);margin-left:6px;}
 .parties-wrap{display:flex;flex-direction:column;gap:10px;}
-.party-block{border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;background:var(--surface);box-shadow:0 1px 3px rgba(0,0,0,0.05);}
+.party-block{border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;background:var(--surface);box-shadow:0 1px 3px rgba(0,0,0,.05);}
 .party-header{display:flex;justify-content:space-between;align-items:center;padding:8px 14px;background:var(--surface2);border-bottom:1px solid var(--border);}
 .party-header-left{display:flex;align-items:center;gap:6px;flex-wrap:wrap;}
-.party-title{font-size:13px;font-weight:700;color:var(--text);}
+.party-title{font-size:13px;font-weight:700;}
 .party-avg{font-size:11px;color:var(--text3);}
 .badge{display:inline-block;font-size:10px;font-weight:500;padding:2px 7px;border-radius:4px;}
 .badge-sup{background:var(--teal-bg);color:var(--teal);border:1px solid var(--teal-border);}
@@ -79,7 +76,7 @@ select{min-width:140px;cursor:pointer;}
 .party-slot.support-slot{background:var(--sup-bg);}
 .slot-role{font-size:10px;font-weight:500;color:var(--text3);margin-bottom:4px;text-transform:uppercase;letter-spacing:.04em;}
 .slot-role.sup-role{color:var(--teal);}
-.slot-name{font-size:13px;font-weight:700;color:var(--text);}
+.slot-name{font-size:13px;font-weight:700;}
 .slot-cls{font-size:11px;color:var(--text2);margin-top:2px;}
 .slot-bp{font-size:11px;color:var(--accent);font-weight:500;margin-top:2px;}
 .empty-label{font-size:11px;color:var(--text3);margin-top:4px;}
@@ -89,32 +86,75 @@ select{min-width:140px;cursor:pointer;}
 .stat-grid{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px;}
 .stat-pill{background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:6px 12px;font-size:12px;display:flex;gap:5px;align-items:baseline;}
 .stat-name{color:var(--text2);font-size:11px;}
-.stat-cur{font-weight:700;color:var(--text);}
+.stat-cur{font-weight:700;}
 .stat-max{font-size:11px;color:var(--text3);}
 .stat-full{color:var(--teal)!important;}
-@media(max-width:600px){
+.diff-normal{color:var(--text);}
+.diff-hard{color:#e05c5c;}
+.diff-nightmare{color:#9b6dff;}
+
+/* 프리셋 */
+.preset-section{margin-top:4px;}
+.preset-row{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:8px;}
+.preset-list{display:flex;flex-direction:column;gap:6px;margin-top:8px;}
+.preset-item{display:flex;align-items:center;justify-content:space-between;padding:8px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);gap:8px;}
+.preset-item-left{display:flex;flex-direction:column;gap:2px;min-width:0;}
+.preset-item-name{font-size:13px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.preset-item-meta{font-size:11px;color:var(--text3);}
+.preset-item-btns{display:flex;gap:6px;flex-shrink:0;}
+.preset-empty{font-size:12px;color:var(--text3);padding:8px 0;}
+.preset-status{font-size:11px;padding:4px 8px;border-radius:4px;}
+.preset-status-ok{color:var(--teal);background:var(--teal-bg);}
+.preset-status-err{color:var(--red);background:var(--red-bg);}
+
+/* 칸반 탭 */
+.kanban-wrap{display:flex;gap:16px;align-items:flex-start;}
+.pool-panel{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px;width:180px;flex-shrink:0;box-shadow:0 1px 4px rgba(0,0,0,.06);}
+.pool-title{font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px;}
+.pool-list{display:flex;flex-direction:column;gap:6px;min-height:60px;border-radius:var(--radius-sm);padding:4px;transition:all .12s;}
+.pool-list.drag-over{background:#E6F1FB;border:1.5px dashed var(--accent);}
+.kanban-parties{flex:1;min-width:0;display:flex;flex-direction:column;gap:10px;}
+.kanban-party{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,.05);}
+.kanban-party-header{display:flex;justify-content:space-between;align-items:center;padding:7px 12px;background:var(--surface2);border-bottom:1px solid var(--border);}
+.kanban-party-title{font-size:12px;font-weight:700;}
+.kanban-party-avg{font-size:11px;color:var(--text3);}
+.kanban-slots{display:flex;gap:8px;padding:10px 12px;flex-wrap:wrap;}
+.char-card{display:flex;flex-direction:column;gap:2px;padding:8px 10px;background:var(--surface);border:1px solid var(--border2);border-radius:var(--radius-sm);cursor:grab;user-select:none;transition:border-color .12s,box-shadow .12s;width:120px;flex-shrink:0;}
+.char-card:hover{border-color:var(--accent);box-shadow:0 2px 8px rgba(55,138,221,.15);}
+.char-card.dragging{opacity:.35;cursor:grabbing;}
+.char-card.support-card{background:var(--sup-bg);border-color:var(--teal-border);}
+.cc-member{font-size:12px;font-weight:700;color:var(--text);}
+.cc-cls{font-size:11px;color:var(--text2);}
+.cc-bp{font-size:11px;color:var(--accent);font-weight:500;}
+.kanban-slot{width:120px;flex-shrink:0;min-height:76px;border:1.5px dashed var(--border2);border-radius:var(--radius-sm);display:flex;flex-direction:column;align-items:flex-start;justify-content:flex-start;padding:5px 6px;transition:all .12s;position:relative;}
+.kanban-slot.has-card{border-style:solid;border-color:var(--border);padding:0;}
+.kanban-slot.drag-over{border-color:var(--accent);background:#E6F1FB;}
+.kanban-slot.sup-slot{border-color:var(--teal-border);}
+.kanban-slot.sup-slot.drag-over{background:var(--sup-bg);}
+.slot-tag{font-size:9px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.05em;padding:5px 8px 0;}
+.kanban-add-btn{width:100%;height:34px;border:1.5px dashed var(--border2);border-radius:var(--radius-sm);background:none;color:var(--text3);font-size:12px;cursor:pointer;transition:all .12s;font-family:inherit;}
+.kanban-add-btn:hover{border-color:var(--accent);color:var(--accent);}
+.kanban-del-btn{background:none;border:none;cursor:pointer;color:var(--text3);font-size:13px;padding:0 2px;line-height:1;}
+.kanban-del-btn:hover{color:var(--red);}
+
+@media(max-width:700px){
+  .kanban-wrap{flex-direction:column;}
+  .pool-panel{width:100%;}
   .slot-grid{grid-template-columns:repeat(2,1fr);}
-  .party-slot{border-bottom:1px solid var(--border);}
-  .party-slot:nth-child(2){border-right:none;}
-  .party-slot:nth-child(3),.party-slot:nth-child(4){border-bottom:none;}
 }
 
-.preset-section { margin-top: 16px; }
-.preset-row { display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-bottom:8px; }
-.preset-list { display:flex; flex-direction:column; gap:6px; margin-top:8px; }
-.preset-item { display:flex; align-items:center; justify-content:space-between; padding:8px 12px; background:var(--surface2); border:1px solid var(--border); border-radius:var(--radius-sm); gap:8px; }
-.preset-item-left { display:flex; flex-direction:column; gap:2px; min-width:0; }
-.preset-item-name { font-size:13px; font-weight:500; color:var(--text); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-.preset-item-meta { font-size:11px; color:var(--text3); }
-.preset-item-btns { display:flex; gap:6px; flex-shrink:0; }
-.preset-empty { font-size:12px; color:var(--text3); padding:8px 0; }
-.preset-status { font-size:11px; padding:4px 8px; border-radius:4px; }
-.preset-status-ok  { color:var(--teal); background:var(--teal-bg); }
-.preset-status-err { color:var(--red); background:var(--red-bg); }
-
-.diff-normal { color: var(--text); }
-.diff-hard   { color: #e05c5c; }
-.diff-nightmare { color: #9b6dff; }
+/* 완료 기록 */
+.completed-bar { display:flex; align-items:center; gap:8px; margin-bottom:12px; flex-wrap:wrap; }
+.week-label { font-size:11px; color:var(--text3); padding:3px 8px; background:var(--surface2); border:1px solid var(--border); border-radius:4px; }
+.char-card.done { opacity:.38; filter:grayscale(60%); position:relative; }
+.char-card.done::after { content:'완료'; position:absolute; top:4px; right:4px; font-size:9px; font-weight:700; color:var(--teal); background:var(--teal-bg); border-radius:3px; padding:1px 4px; }
+.done-badge { font-size:9px; font-weight:700; color:var(--teal); background:var(--teal-bg); border-radius:3px; padding:1px 5px; margin-left:4px; vertical-align:middle; }
+.party-slot.done-slot { opacity:.45; }
+.slot-done-tag { font-size:9px; font-weight:700; color:var(--teal); margin-top:2px; }
+.complete-btn { height:22px; padding:0 8px; font-size:10px; border-radius:4px; border:1px solid var(--teal-border); background:var(--teal-bg); color:var(--teal); cursor:pointer; font-family:inherit; font-weight:500; white-space:nowrap; transition:all .12s; }
+.complete-btn:hover { background:var(--teal); color:#fff; }
+.complete-btn.undo { border-color:#F09595; background:var(--red-bg); color:var(--red); }
+.complete-btn.undo:hover { background:var(--red); color:#fff; }
 </style>
 </head>
 <body>
@@ -150,6 +190,16 @@ select{min-width:140px;cursor:pointer;}
   </div>
 
 
+  <div class="card" id="completedCard" style="display:none;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+      <div class="section-label" style="margin-bottom:0;">이번 주 완료 현황 — <span id="completedRaidLabel" style="text-transform:none;font-size:11px;color:var(--text2);"></span></div>
+      <div style="display:flex;gap:8px;align-items:center;">
+        <span id="weekLabel" class="week-label"></span>
+        <button class="btn btn-sm" onclick="resetWeek()" style="color:var(--red);border-color:#F09595;">주간 초기화</button>
+      </div>
+    </div>
+    <div id="completedList" style="display:flex;flex-wrap:wrap;gap:6px;"></div>
+  </div>
   <div class="card preset-section" id="presetCard" style="display:none;">
     <div class="section-label">프리셋</div>
     <div class="preset-row">
@@ -159,22 +209,54 @@ select{min-width:140px;cursor:pointer;}
     </div>
     <div class="preset-list" id="presetList"></div>
   </div>
-  <div id="resultCard" style="display:none;">
-    <div class="result-header">
-      <div>
-        <span class="party-count" id="partyCountLabel">0</span>
-        <span class="party-count-sub">파티 구성</span>
+
+  <div id="mainTabs" style="display:none;">
+    <div class="tabs">
+      <button class="tab-btn active" onclick="switchTab('recommend')">자동 추천</button>
+      <button class="tab-btn" onclick="switchTab('kanban')">칸반 편집</button>
+    </div>
+
+    <!-- 자동 추천 탭 -->
+    <div id="tab-recommend" class="tab-panel active">
+      <div class="result-header">
+        <div>
+          <span class="party-count" id="partyCountLabel">0</span>
+          <span class="party-count-sub">파티 구성</span>
+        </div>
+        <span id="raidLabel" style="font-size:17px;font-weight:700;"></span>
+        <div style="display:flex;gap:8px;">
+          <button class="btn" onclick="addEmptyParty()">+ 파티 추가</button>
+          <button class="btn btn-primary" onclick="buildParties()">다시 추천 ↺</button>
+        </div>
       </div>
-      <span id="raidLabel" style="font-size:17px;font-weight:700;color:var(--text);"></span>
-      <div style="display:flex;gap:8px;">
-        <button class="btn" onclick="addEmptyParty()">+ 파티 추가</button>
-        <button class="btn btn-primary" onclick="buildParties()">다시 추천 ↺</button>
+      <div class="parties-wrap" id="partiesWrap"></div>
+      <div class="divider"></div>
+      <div class="section-label">멤버별 참여 횟수</div>
+      <div class="stat-grid" id="statGrid"></div>
+    </div>
+
+    <!-- 칸반 탭 -->
+    <div id="tab-kanban" class="tab-panel">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
+        <span id="kanbanRaidLabel" style="font-size:17px;font-weight:700;"></span>
+        <div style="display:flex;gap:8px;">
+          <button class="btn" onclick="kanbanAddParty()">+ 파티 추가</button>
+          <button class="btn btn-primary" onclick="syncFromKanban()">추천 탭에 반영 →</button>
+        </div>
+      </div>
+      <!-- 완료 드롭존 -->
+      <div id="completedDropZone" style="background:var(--teal-bg);border:1.5px dashed var(--teal-border);border-radius:var(--radius);padding:10px 14px;margin-bottom:12px;transition:all .12s;">
+        <div style="font-size:10px;font-weight:700;color:var(--teal);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px;">✓ 완료 — 여기에 드래그하면 완료 처리됩니다</div>
+        <div id="kanbanCompletedList" style="display:flex;flex-wrap:wrap;gap:6px;min-height:32px;"></div>
+      </div>
+      <div class="kanban-wrap">
+        <div class="pool-panel">
+          <div class="pool-title">미배치 캐릭터</div>
+          <div class="pool-list" id="poolList"></div>
+        </div>
+        <div class="kanban-parties" id="kanbanParties"></div>
       </div>
     </div>
-    <div class="parties-wrap" id="partiesWrap"></div>
-    <div class="divider"></div>
-    <div class="section-label">멤버별 참여 횟수</div>
-    <div class="stat-grid" id="statGrid"></div>
   </div>
 </div>
 
@@ -192,31 +274,48 @@ const RAIDS={
   ]
 };
 const SUPPORTS=["바드","홀나","도화가","발키리"];
-const BSAM=["창술사","블레","슬레"];
+const BSAM=["창술사","블레","슬레","데헌","리퍼"];
 const TEAM_A_SINGLE=["민트치킨","전복치킨"];
 const TEAM_A_MULTI=["카페룽고","잼둘냥"];
 const TEAM_B_SINGLE=["남제나","포지셔닝"];
 const TEAM_B_MULTI=["아즈웬","신카"];
 
-let MEMBERS_RAW=[];
-let MEMBER_ORDER=[];
-let selectedMembers=new Set();
-let currentDiff=null;
-let partyCounts={};
-let allParties=[];
-let maxCharsPerMember={};
+let MEMBERS_RAW=[],MEMBER_ORDER=[],selectedMembers=new Set(),currentDiff=null;
+let partyCounts={},allParties=[],maxCharsPerMember={};
+let dragSrc=null;
 
 const isSupport=cls=>SUPPORTS.includes(cls);
 const isBsam=cls=>BSAM.includes(cls);
 const memberOrderIdx=n=>MEMBER_ORDER.indexOf(n);
 const cleanCls=cls=>String(cls).replace(/\d+$/,"").trim();
 
+function switchTab(name){
+  document.querySelectorAll(".tab-btn").forEach((b,i)=>b.classList.toggle("active",["recommend","kanban"][i]===name));
+  document.getElementById("tab-recommend").classList.toggle("active",name==="recommend");
+  document.getElementById("tab-kanban").classList.toggle("active",name==="kanban");
+  if(name==="kanban")renderKanban();
+}
+
+// JSONP GET 헬퍼 (GET 파라미터로 action 전달)
+function jsonpGet(params, onSuccess, onError) {
+  const url = getUrl();
+  const cbName = "__cb_" + Date.now() + "_" + Math.random().toString(36).slice(2);
+  const script = document.createElement("script");
+  const tid = setTimeout(()=>{ cleanup(); if(onError) onError(); }, 8000);
+  function cleanup(){ clearTimeout(tid); delete window[cbName]; script.parentNode&&script.parentNode.removeChild(script); }
+  window[cbName] = data=>{ cleanup(); onSuccess(data); };
+  script.onerror = ()=>{ cleanup(); if(onError) onError(); };
+  const qs = Object.entries(params).map(([k,v])=>k+"="+encodeURIComponent(v)).join("&");
+  script.src = url + (url.includes("?")?"&":"?") + qs + "&callback=" + cbName;
+  document.head.appendChild(script);
+}
+
+// ── 시트 로드 ──
 function loadSheet(){
   const url=document.getElementById("sheetUrl").value.trim();
   if(!url){showStatus("URL을 입력해주세요.","err");return;}
   showStatus("데이터 불러오는 중...","load");
-  const cbName="__gs_"+Date.now();
-  const script=document.createElement("script");
+  const cbName="__gs_"+Date.now(),script=document.createElement("script");
   const tid=setTimeout(()=>{cleanup();showStatus("불러오기 실패: 시간 초과","err");},10000);
   function cleanup(){clearTimeout(tid);delete window[cbName];script.parentNode&&script.parentNode.removeChild(script);}
   window[cbName]=data=>{
@@ -229,7 +328,7 @@ function loadSheet(){
       const total=MEMBERS_RAW.reduce((s,m)=>s+m.chars.length,0);
       showStatus(`✓ ${MEMBERS_RAW.length}명 / 캐릭터 ${total}개 불러오기 완료`,"ok");
       document.getElementById("raidCard").style.display="block";
-      document.getElementById("resultCard").style.display="none";
+      document.getElementById("mainTabs").style.display="none";
       renderMembers();
     }catch(e){showStatus("파싱 오류: "+e.message,"err");}
   };
@@ -241,82 +340,69 @@ function showStatus(msg,type){
   const el=document.getElementById("statusBox");
   el.style.display="block";el.textContent=msg;el.className="status-box status-"+type;
 }
-
-// 2차원 배열 파싱
-// rows[0] = 헤더행 (직업/아이템 레벨/전투력/세르카/성심당 반복)
-// rows[1] = 닉네임행 (5칸 간격)
-// rows[2~] = 캐릭터 데이터
 function parseSheetData(rows){
   if(!rows||rows.length<2)return[];
   const SKIP=["직업","아이템 레벨","아이템레벨","전투력","세르카","성심당",""];
   const isName=v=>{const s=String(v||"").trim();return s&&isNaN(s)&&!SKIP.includes(s);};
   const numCols=rows[0].length;
-
-  // 닉네임 행 찾기
-  let nicknameRowIdx=-1;
+  let ni=-1;
   for(let r=1;r<Math.min(rows.length,5);r++){
-    const vals=[];
-    for(let gi=0;gi*5<numCols;gi++) vals.push(rows[r][gi*5]);
-    if(vals.some(isName)){nicknameRowIdx=r;break;}
+    const vals=[];for(let gi=0;gi*5<numCols;gi++)vals.push(rows[r][gi*5]);
+    if(vals.some(isName)){ni=r;break;}
   }
-  if(nicknameRowIdx<0)return[];
-
+  if(ni<0)return[];
   const members=[];
   for(let gi=0;gi*5<numCols;gi++){
-    const base=gi*5;
-    if(base+4>=numCols)break;
-    const name=String(rows[nicknameRowIdx][base]||"").trim();
+    const base=gi*5;if(base+4>=numCols)break;
+    const name=String(rows[ni][base]||"").trim();
     if(!name||!isName(name))continue;
     const chars=[];
     for(let r=0;r<rows.length;r++){
-      if(r===nicknameRowIdx)continue;
+      if(r===ni)continue;
       const clsRaw=String(rows[r][base]||"").trim();
       if(!clsRaw||SKIP.includes(clsRaw)||clsRaw===name)continue;
       const ilvl=parseFloat(String(rows[r][base+1]||"").replace(/,/g,""));
       const bp=parseFloat(String(rows[r][base+2]||"").replace(/,/g,""));
       if(!ilvl||!bp)continue;
-      chars.push({
-        cls:cleanCls(clsRaw),ilvl,bp,
-        세르카:String(rows[r][base+3]||"").trim(),
-        성심당:String(rows[r][base+4]||"").trim()
-      });
+      chars.push({cls:cleanCls(clsRaw),ilvl,bp,세르카:String(rows[r][base+3]||"").trim(),성심당:String(rows[r][base+4]||"").trim()});
     }
     if(chars.length)members.push({name,chars});
   }
   return members;
 }
-
 function charFits(c){
   if(!currentDiff)return false;
   if(c.ilvl<currentDiff.minIlvl)return false;
-  
   return String(c[currentDiff.sheetKey]||"").trim()===currentDiff.sheetVal;
 }
 function getEligibleChars(name){
   const m=MEMBERS_RAW.find(x=>x.name===name);
   if(!m)return[];
-  return m.chars.filter(c=>charFits(c)).map((c,i)=>({...c,member:name,uid:name+"_"+i}));
+  // uid는 전체 캐릭터 배열 기준 인덱스로 고정 (레이드/난이도가 바뀌어도 uid 불변)
+  return m.chars
+    .map((c,i)=>({...c,member:name,uid:name+"_"+i}))
+    .filter(c=>charFits(c))
+    .filter(c=>!completedUids.has(c.uid));
 }
-
 function onRaidChange(){
-  const raid=document.getElementById("raidSel").value;
-  const ds=document.getElementById("diffSel");
+  const raid=document.getElementById("raidSel").value,ds=document.getElementById("diffSel");
   ds.innerHTML='<option value="">-- 난이도 --</option>';
   document.getElementById("levelReq").style.display="none";
-  document.getElementById("resultCard").style.display="none";
+  document.getElementById("mainTabs").style.display="none";
   currentDiff=null;
   if(!raid)return;
   RAIDS[raid].forEach(d=>{const o=document.createElement("option");o.value=d.label;o.textContent=d.label;ds.appendChild(o);});
 }
 function onDiffChange(){
   const raid=document.getElementById("raidSel").value,diff=document.getElementById("diffSel").value;
-  document.getElementById("resultCard").style.display="none";
+  document.getElementById("mainTabs").style.display="none";
   const lr=document.getElementById("levelReq");
   if(!raid||!diff){lr.style.display="none";currentDiff=null;return;}
   currentDiff=RAIDS[raid].find(d=>d.label===diff);
-  lr.textContent=`아이템 레벨 ${currentDiff.minIlvl}+`;
-  lr.style.display="inline-block";
-  renderMembers();buildParties();
+  lr.textContent=`아이템 레벨 ${currentDiff.minIlvl}+`;lr.style.display="inline-block";
+  renderMembers();
+  // 완료 데이터 먼저 로드 후 파티 구성
+  loadCompletedThenBuild();
 }
 function renderMembers(){
   const grid=document.getElementById("memberGrid");grid.innerHTML="";
@@ -325,36 +411,26 @@ function renderMembers(){
     const chip=document.createElement("div");
     chip.className="member-chip"+(selectedMembers.has(m.name)?" active":"");
     chip.innerHTML=`<span class="dot"></span><span>${m.name}</span><span style="font-size:10px;opacity:.6;margin-left:2px">${el.length}캐</span>`;
-    chip.onclick=()=>{
-      selectedMembers.has(m.name)?selectedMembers.delete(m.name):selectedMembers.add(m.name);
-      renderMembers();if(currentDiff)buildParties();
-    };
+    chip.onclick=()=>{selectedMembers.has(m.name)?selectedMembers.delete(m.name):selectedMembers.add(m.name);renderMembers();if(currentDiff)loadCompletedThenBuild();};
     grid.appendChild(chip);
   });
 }
 
+// ── 자동 추천 ──
 const makeParty=()=>({slots:[],usedMember:new Set(),usedCls:new Set(),bsamCount:0});
-function addSlot(p,ch,used){
-  p.slots.push(ch);p.usedMember.add(ch.member);p.usedCls.add(ch.cls);
-  if(isBsam(ch.cls))p.bsamCount++;used.add(ch.uid);
-}
-function sortP(p){
-  p.slots.sort((a,b)=>memberOrderIdx(a.member)-memberOrderIdx(b.member));
-  while(p.slots.length<4)p.slots.push(null);
-}
+function addSlot(p,ch,used){p.slots.push(ch);p.usedMember.add(ch.member);p.usedCls.add(ch.cls);if(isBsam(ch.cls))p.bsamCount++;used.add(ch.uid);}
+function sortP(p){p.slots.sort((a,b)=>memberOrderIdx(a.member)-memberOrderIdx(b.member));while(p.slots.length<4)p.slots.push(null);}
 const partyAvgBp=slots=>{const f=slots.filter(s=>s);return f.length?f.reduce((s,c)=>s+c.bp,0)/f.length:0;};
 const filledCount=slots=>slots.filter(s=>s).length;
-
 function pickDealer(name,p,used,priority){
   let chars=getEligibleChars(name).filter(c=>!used.has(c.uid)&&!isSupport(c.cls));
   if(!chars.length)return null;
   chars.sort((a,b)=>priority==="lowest"?a.bp-b.bp:b.bp-a.bp);
-  return chars.find(c=>!p.usedCls.has(c.cls)&&!(isBsam(c.cls)&&p.bsamCount>=2))
-    ||chars.find(c=>!p.usedCls.has(c.cls))||chars[0];
+  // 백사멸 2개 이상은 가능하지만 우선순위 낮춤 (소프트 제한)
+  return chars.find(c=>!p.usedCls.has(c.cls)&&!(isBsam(c.cls)&&p.bsamCount>=2))||chars.find(c=>!p.usedCls.has(c.cls))||chars.find(c=>!(isBsam(c.cls)&&p.bsamCount>=3))||chars[0];
 }
 function tryAssignSupport(p,order,used){
-  const cand=order.filter(n=>selectedMembers.has(n)&&MEMBER_ORDER.includes(n)&&!p.usedMember.has(n)
-    &&getEligibleChars(n).some(c=>!used.has(c.uid)&&isSupport(c.cls)));
+  const cand=order.filter(n=>selectedMembers.has(n)&&MEMBER_ORDER.includes(n)&&!p.usedMember.has(n)&&getEligibleChars(n).some(c=>!used.has(c.uid)&&isSupport(c.cls)));
   if(!cand.length)return false;
   const name=cand[0];
   const ch=getEligibleChars(name).filter(c=>!used.has(c.uid)&&isSupport(c.cls)).sort((a,b)=>b.bp-a.bp)[0];
@@ -365,111 +441,91 @@ function balanceParties(parties,freeFrom){
   while(improved&&iter<200){
     improved=false;iter++;
     let maxPi=-1,minPi=-1,maxA=-Infinity,minA=Infinity;
-    for(let i=freeFrom;i<parties.length;i++){
-      const a=partyAvgBp(parties[i].slots);
-      if(a>maxA){maxA=a;maxPi=i;}if(a>0&&a<minA){minA=a;minPi=i;}
-    }
+    for(let i=freeFrom;i<parties.length;i++){const a=partyAvgBp(parties[i].slots);if(a>maxA){maxA=a;maxPi=i;}if(a>0&&a<minA){minA=a;minPi=i;}}
     if(maxPi<0||minPi<0||maxPi===minPi||maxA-minA<100)break;
-    const hp=parties[maxPi],lp=parties[minPi];
-    let best=null,bestGain=0;
-    hp.slots.forEach((hs,hsi)=>{
-      if(!hs||isSupport(hs.cls))return;
-      lp.slots.forEach((ls,lsi)=>{
-        if(!ls||isSupport(ls.cls))return;
-        if(hs.member!==ls.member||hs.bp<=ls.bp)return;
-        const hf=hp.slots.filter(s=>s),lf=lp.slots.filter(s=>s);
-        const nha=(hf.reduce((s,c)=>s+c.bp,0)-hs.bp+ls.bp)/hf.length;
-        const nla=(lf.reduce((s,c)=>s+c.bp,0)-ls.bp+hs.bp)/lf.length;
-        const gain=(maxA-minA)-Math.abs(nha-nla);
-        if(gain>bestGain){bestGain=gain;best={hsi,lsi,hs,ls};}
-      });
-    });
+    const hp=parties[maxPi],lp=parties[minPi];let best=null,bestGain=0;
+    hp.slots.forEach((hs,hsi)=>{if(!hs||isSupport(hs.cls))return;lp.slots.forEach((ls,lsi)=>{if(!ls||isSupport(ls.cls))return;if(hs.member!==ls.member||hs.bp<=ls.bp)return;const hf=hp.slots.filter(s=>s),lf=lp.slots.filter(s=>s);const nha=(hf.reduce((s,c)=>s+c.bp,0)-hs.bp+ls.bp)/hf.length,nla=(lf.reduce((s,c)=>s+c.bp,0)-ls.bp+hs.bp)/lf.length,gain=(maxA-minA)-Math.abs(nha-nla);if(gain>bestGain){bestGain=gain;best={hsi,lsi,hs,ls};}});});
     if(best&&bestGain>0){hp.slots[best.hsi]=best.ls;lp.slots[best.lsi]=best.hs;improved=true;}
   }
 }
 function buildFreeParties(used,mCnt){
   const rDQ={},rSQ={};
-  MEMBER_ORDER.filter(n=>selectedMembers.has(n)).forEach(n=>{
-    rDQ[n]=getEligibleChars(n).filter(c=>!used.has(c.uid)&&!isSupport(c.cls)).sort((a,b)=>a.bp-b.bp);
-    rSQ[n]=getEligibleChars(n).filter(c=>!used.has(c.uid)&&isSupport(c.cls)).sort((a,b)=>b.bp-a.bp);
-  });
+  MEMBER_ORDER.filter(n=>selectedMembers.has(n)).forEach(n=>{rDQ[n]=getEligibleChars(n).filter(c=>!used.has(c.uid)&&!isSupport(c.cls)).sort((a,b)=>a.bp-b.bp);rSQ[n]=getEligibleChars(n).filter(c=>!used.has(c.uid)&&isSupport(c.cls)).sort((a,b)=>b.bp-a.bp);});
   const parties=[];
   const hasRemain=()=>MEMBER_ORDER.some(n=>selectedMembers.has(n)&&((rDQ[n]?.length>0)||(rSQ[n]?.length>0)));
   while(hasRemain()){
     const ep=makeParty();
-    const supCand=MEMBER_ORDER.filter(n=>selectedMembers.has(n)&&!ep.usedMember.has(n)&&rSQ[n]?.length>0)
-      .sort((a,b)=>{const d=(mCnt[a]||0)-(mCnt[b]||0);return d||memberOrderIdx(a)-memberOrderIdx(b);});
-    if(supCand.length){
-      const name=supCand[0];const ch=rSQ[name][0];
-      addSlot(ep,ch,used);rSQ[name].shift();mCnt[name]=(mCnt[name]||0)+1;
-    }
+    const supCand=MEMBER_ORDER.filter(n=>selectedMembers.has(n)&&!ep.usedMember.has(n)&&rSQ[n]?.length>0).sort((a,b)=>{const d=(mCnt[a]||0)-(mCnt[b]||0);return d||memberOrderIdx(a)-memberOrderIdx(b);});
+    if(supCand.length){const name=supCand[0];const ch=rSQ[name][0];addSlot(ep,ch,used);rSQ[name].shift();mCnt[name]=(mCnt[name]||0)+1;}
     while(ep.slots.filter(s=>s).length<4){
-      const cands=MEMBER_ORDER.filter(n=>selectedMembers.has(n)&&rDQ[n]?.length>0&&!ep.usedMember.has(n))
-        .sort((a,b)=>{const d=(mCnt[a]||0)-(mCnt[b]||0);return d||memberOrderIdx(a)-memberOrderIdx(b);});
+      const cands=MEMBER_ORDER.filter(n=>selectedMembers.has(n)&&rDQ[n]?.length>0&&!ep.usedMember.has(n)).sort((a,b)=>{const d=(mCnt[a]||0)-(mCnt[b]||0);return d||memberOrderIdx(a)-memberOrderIdx(b);});
       if(!cands.length)break;
       let picked=null,pickedChar=null;
-      outer1:for(const n of cands){for(const ch of rDQ[n]){if(ep.usedCls.has(ch.cls)||(isBsam(ch.cls)&&ep.bsamCount>=2))continue;picked=n;pickedChar=ch;break outer1;}}
+      outer1:for(const n of cands){for(const ch of rDQ[n]){if(ep.usedCls.has(ch.cls)||(isBsam(ch.cls)&&ep.bsamCount>=2))continue;picked=n;pickedChar=ch;break outer1;}} // 백사멸 2개까지 우선, 안되면 아래에서 허용
       if(!picked){outer2:for(const n of cands){for(const ch of rDQ[n]){if(ep.usedCls.has(ch.cls))continue;picked=n;pickedChar=ch;break outer2;}}}
       if(!picked){picked=cands[0];pickedChar=rDQ[picked][0];}
-      if(picked&&pickedChar){addSlot(ep,pickedChar,used);rDQ[picked]=rDQ[picked].filter(c=>c.uid!==pickedChar.uid);mCnt[picked]=(mCnt[picked]||0)+1;}
-      else break;
+      if(picked&&pickedChar){addSlot(ep,pickedChar,used);rDQ[picked]=rDQ[picked].filter(c=>c.uid!==pickedChar.uid);mCnt[picked]=(mCnt[picked]||0)+1;}else break;
     }
-    sortP(ep);
-    if(filledCount(ep.slots)>=2)parties.push(ep);else break;
+    sortP(ep);if(filledCount(ep.slots)>=3)parties.push(ep);else break;
   }
   return parties;
 }
+// A/B조 고정 편성 조건: 모든 A/B조 멤버의 최고bp 캐릭터가 완료되지 않아야 함
+function isABGroupBroken(){
+  const allAB=[...TEAM_A_SINGLE,...TEAM_A_MULTI,...TEAM_B_SINGLE,...TEAM_B_MULTI];
+  return allAB.some(name=>{
+    if(!selectedMembers.has(name)||!MEMBER_ORDER.includes(name))return false;
+    // 완료 제외 전 전체 eligible 캐릭터 중 최고bp 캐릭터
+    const m=MEMBERS_RAW.find(x=>x.name===name);
+    if(!m)return false;
+    const eligible=m.chars.filter(c=>charFits(c)).map((c,i)=>({...c,member:name,uid:name+"_"+i}));
+    if(!eligible.length)return false;
+    const topChar=eligible.reduce((a,b)=>b.bp>a.bp?b:a);
+    return completedUids.has(topChar.uid);
+  });
+}
+
 function buildParties(){
   if(!currentDiff||!MEMBERS_RAW.length)return;
   maxCharsPerMember={};
   MEMBER_ORDER.filter(n=>selectedMembers.has(n)).forEach(n=>{maxCharsPerMember[n]=getEligibleChars(n).length;});
-  const used=new Set(),mCnt={};
-  MEMBER_ORDER.forEach(n=>{mCnt[n]=0;});
+  const used=new Set(),mCnt={};MEMBER_ORDER.forEach(n=>{mCnt[n]=0;});
   let allP=[];
-  if(currentDiff.topTier){
+  if(currentDiff.topTier && !isABGroupBroken()){
     const p1=makeParty();
     tryAssignSupport(p1,[...TEAM_A_SINGLE,...TEAM_A_MULTI],used);
-    for(const n of TEAM_A_SINGLE.filter(n=>selectedMembers.has(n)&&MEMBER_ORDER.includes(n)&&!p1.usedMember.has(n))){
-      if(p1.slots.length>=4)break;const ch=pickDealer(n,p1,used,"highest");if(ch)addSlot(p1,ch,used);
-    }
-    for(const n of TEAM_A_MULTI.filter(n=>selectedMembers.has(n)&&MEMBER_ORDER.includes(n)&&!p1.usedMember.has(n))){
-      if(p1.slots.length>=4)break;const ch=pickDealer(n,p1,used,"lowest");if(ch)addSlot(p1,ch,used);
-    }
+    for(const n of TEAM_A_SINGLE.filter(n=>selectedMembers.has(n)&&MEMBER_ORDER.includes(n)&&!p1.usedMember.has(n))){if(p1.slots.length>=4)break;const ch=pickDealer(n,p1,used,"highest");if(ch)addSlot(p1,ch,used);}
+    for(const n of TEAM_A_MULTI.filter(n=>selectedMembers.has(n)&&MEMBER_ORDER.includes(n)&&!p1.usedMember.has(n))){if(p1.slots.length>=4)break;const ch=pickDealer(n,p1,used,"lowest");if(ch)addSlot(p1,ch,used);}
     sortP(p1);p1.slots.forEach(s=>{if(s)mCnt[s.member]=(mCnt[s.member]||0)+1;});
     const p2=makeParty();
     tryAssignSupport(p2,[...TEAM_B_SINGLE,...TEAM_B_MULTI],used);
-    for(const n of TEAM_B_SINGLE.filter(n=>selectedMembers.has(n)&&MEMBER_ORDER.includes(n)&&!p2.usedMember.has(n))){
-      if(p2.slots.length>=4)break;const ch=pickDealer(n,p2,used,"highest");if(ch)addSlot(p2,ch,used);
-    }
-    for(const n of TEAM_B_MULTI.filter(n=>selectedMembers.has(n)&&MEMBER_ORDER.includes(n)&&!p2.usedMember.has(n))){
-      if(p2.slots.length>=4)break;const ch=pickDealer(n,p2,used,"lowest");if(ch)addSlot(p2,ch,used);
-    }
+    for(const n of TEAM_B_SINGLE.filter(n=>selectedMembers.has(n)&&MEMBER_ORDER.includes(n)&&!p2.usedMember.has(n))){if(p2.slots.length>=4)break;const ch=pickDealer(n,p2,used,"highest");if(ch)addSlot(p2,ch,used);}
+    for(const n of TEAM_B_MULTI.filter(n=>selectedMembers.has(n)&&MEMBER_ORDER.includes(n)&&!p2.usedMember.has(n))){if(p2.slots.length>=4)break;const ch=pickDealer(n,p2,used,"lowest");if(ch)addSlot(p2,ch,used);}
     sortP(p2);p2.slots.forEach(s=>{if(s)mCnt[s.member]=(mCnt[s.member]||0)+1;});
     const extras=buildFreeParties(used,mCnt);
-    const fixed=[p1,p2].filter(p=>filledCount(p.slots)>=2);
-    allP=[...fixed,...extras];
-    balanceParties(allP,fixed.length);
-  } else {
-    allP=buildFreeParties(used,mCnt);
-    balanceParties(allP,0);
-  }
+    const fixed=[p1,p2].filter(p=>filledCount(p.slots)>=3);
+    allP=[...fixed,...extras];balanceParties(allP,fixed.length);
+  } else {allP=buildFreeParties(used,mCnt);balanceParties(allP,0);}
   allParties=allP.map(p=>p.slots);
   recalcCounts();
+  updateRaidLabel();
   document.getElementById("partyCountLabel").textContent=allParties.length;
-  const raidEmoji = {"성심당":"⛪","세르카":"🧙"};
-  const raidName = document.getElementById("raidSel").value;
-  const diffName = document.getElementById("diffSel").value;
-  const diffClass = {
-    "노말":"diff-normal","1단계":"diff-normal",
-    "하드":"diff-hard","2단계":"diff-hard",
-    "나이트메어":"diff-nightmare","3단계":"diff-nightmare"
-  }[diffName] || "diff-normal";
-  document.getElementById("raidLabel").innerHTML =
-    `<span style="font-weight:700">${(raidEmoji[raidName]||"")} ${raidName}</span> <span class="${diffClass}" style="font-weight:700">${diffName}</span>`;
   renderParties();renderStats();
-  document.getElementById("resultCard").style.display="block";
+  document.getElementById("mainTabs").style.display="block";
   document.getElementById("presetCard").style.display="block";
+  document.getElementById("completedCard").style.display="block";
   loadPresets();
+}
+function updateRaidLabel(){
+  const raidEmoji={"성심당":"⛪","세르카":"🧙"};
+  const raidName=document.getElementById("raidSel").value;
+  const diffName=document.getElementById("diffSel").value;
+  const diffClass={"노말":"diff-normal","1단계":"diff-normal","하드":"diff-hard","2단계":"diff-hard","나이트메어":"diff-nightmare","3단계":"diff-nightmare"}[diffName]||"diff-normal";
+  const html=`<span style="font-weight:700">${raidEmoji[raidName]||""} ${raidName}</span> <span class="${diffClass}" style="font-weight:700">${diffName}</span>`;
+  document.getElementById("raidLabel").innerHTML=html;
+  document.getElementById("kanbanRaidLabel").innerHTML=html;
+  const crl=document.getElementById("completedRaidLabel");
+  if(crl) crl.textContent=`${raidEmoji[raidName]||""} ${raidName}`;
 }
 function recalcCounts(){
   partyCounts={};MEMBERS_RAW.forEach(m=>{partyCounts[m.name]=0;});
@@ -479,18 +535,10 @@ function addEmptyParty(){allParties.push([null,null,null,null]);document.getElem
 function removeParty(pi){allParties.splice(pi,1);recalcCounts();document.getElementById("partyCountLabel").textContent=allParties.length;renderParties();renderStats();}
 function getSlotOptions(pi,si){
   const cur=allParties[pi][si];
-  const otherUids=new Set();
-  allParties.forEach((slots,pii)=>slots.forEach((s,sii)=>{if(s&&!(pii===pi&&sii===si))otherUids.add(s.uid);}));
-  const sameMembers=new Set();
-  allParties[pi].forEach((s,sii)=>{if(s&&sii!==si)sameMembers.add(s.member);});
+  const otherUids=new Set();allParties.forEach((slots,pii)=>slots.forEach((s,sii)=>{if(s&&!(pii===pi&&sii===si))otherUids.add(s.uid);}));
+  const sameMembers=new Set();allParties[pi].forEach((s,sii)=>{if(s&&sii!==si)sameMembers.add(s.member);});
   let pool=[];
-  [...selectedMembers].forEach(name=>{
-    getEligibleChars(name).forEach(c=>{
-      if(otherUids.has(c.uid))return;
-      if(sameMembers.has(c.member)&&!(cur&&c.uid===cur.uid))return;
-      pool.push(c);
-    });
-  });
+  [...selectedMembers].forEach(name=>{getEligibleChars(name).forEach(c=>{if(otherUids.has(c.uid))return;if(sameMembers.has(c.member)&&!(cur&&c.uid===cur.uid))return;pool.push(c);});});
   if(cur)pool.push(cur);
   return pool.filter((c,i,a)=>a.findIndex(x=>x.uid===c.uid)===i).sort((a,b)=>b.bp-a.bp);
 }
@@ -508,8 +556,7 @@ function partyBadges(slots){
 function renderParties(){
   const wrap=document.getElementById("partiesWrap");wrap.innerHTML="";
   allParties.forEach((slots,pi)=>{
-    const avg=avgBp(slots);
-    const{hasSupp,warns,bsamCnt,cnt}=partyBadges(slots);
+    const avg=avgBp(slots);const{hasSupp,warns,bsamCnt,cnt}=partyBadges(slots);
     const block=document.createElement("div");block.className="party-block";
     const hdr=document.createElement("div");hdr.className="party-header";
     let badges="";
@@ -521,9 +568,7 @@ function renderParties(){
     left.innerHTML=`<span class="party-title">파티 ${pi+1}</span>${badges}`;
     const right=document.createElement("div");right.style.cssText="display:flex;align-items:center;gap:8px;";
     if(cnt>0)right.innerHTML=`<span class="party-avg">평균 전투력 ${avg.toLocaleString()}</span>`;
-    const rmBtn=document.createElement("button");rmBtn.className="btn btn-sm";rmBtn.textContent="삭제";
-    rmBtn.style.cssText="color:var(--red);border-color:#F09595;background:transparent;";
-    rmBtn.onclick=()=>removeParty(pi);
+    const rmBtn=document.createElement("button");rmBtn.className="btn btn-sm";rmBtn.textContent="삭제";rmBtn.style.cssText="color:var(--red);border-color:#F09595;background:transparent;";rmBtn.onclick=()=>removeParty(pi);
     right.appendChild(rmBtn);hdr.appendChild(left);hdr.appendChild(right);block.appendChild(hdr);
     const slotGrid=document.createElement("div");slotGrid.className="slot-grid";
     slots.forEach((slot,si)=>{
@@ -535,28 +580,24 @@ function renderParties(){
         const nm=document.createElement("div");nm.className="slot-name";nm.textContent=slot.member;div.appendChild(nm);
         const cl=document.createElement("div");cl.className="slot-cls";cl.textContent=slot.cls;div.appendChild(cl);
         const bp=document.createElement("div");bp.className="slot-bp";bp.textContent=slot.bp.toLocaleString();div.appendChild(bp);
-      } else {
-        const em=document.createElement("div");em.className="empty-label";em.textContent="빈 슬롯";div.appendChild(em);
-      }
+        // 완료 버튼
+        const isDone=completedUids.has(slot.uid);
+        if(isDone){const dt=document.createElement("div");dt.className="slot-done-tag";dt.textContent="✓ 완료";div.appendChild(dt);}
+        const cbtn=document.createElement("button");
+        cbtn.className="complete-btn"+(isDone?" undo":"");
+        cbtn.textContent=isDone?"완료 취소":"완료";
+        cbtn.onclick=(e)=>{e.stopPropagation();toggleCompleted(slot,pi,si);};
+        div.appendChild(cbtn);
+        if(isDone)div.classList.add("done-slot");
+      } else {const em=document.createElement("div");em.className="empty-label";em.textContent="빈 슬롯";div.appendChild(em);}
       const opts=getSlotOptions(pi,si);
       const sel=document.createElement("select");sel.className="slot-sel";
       sel.innerHTML='<option value="">변경...</option>';
-      opts.forEach((o,oi)=>{
-        const opt=document.createElement("option");opt.value=oi;
-        opt.textContent=`${o.member} · ${o.cls} · ${o.bp.toLocaleString()}`;
-        if(slot&&o.uid===slot.uid)opt.selected=true;
-        sel.appendChild(opt);
-      });
+      opts.forEach((o,oi)=>{const opt=document.createElement("option");opt.value=oi;opt.textContent=`${o.member} · ${o.cls} · ${o.bp.toLocaleString()}`;if(slot&&o.uid===slot.uid)opt.selected=true;sel.appendChild(opt);});
       sel.onchange=()=>{
         const prev=allParties[pi][si];
-        if(sel.value===""){
-          if(prev)partyCounts[prev.member]=Math.max(0,(partyCounts[prev.member]||1)-1);
-          allParties[pi][si]=null;
-        } else {
-          const chosen=opts[parseInt(sel.value)];
-          if(prev)partyCounts[prev.member]=Math.max(0,(partyCounts[prev.member]||1)-1);
-          allParties[pi][si]=chosen;partyCounts[chosen.member]=(partyCounts[chosen.member]||0)+1;
-        }
+        if(sel.value===""){if(prev)partyCounts[prev.member]=Math.max(0,(partyCounts[prev.member]||1)-1);allParties[pi][si]=null;}
+        else{const chosen=opts[parseInt(sel.value)];if(prev)partyCounts[prev.member]=Math.max(0,(partyCounts[prev.member]||1)-1);allParties[pi][si]=chosen;partyCounts[chosen.member]=(partyCounts[chosen.member]||0)+1;}
         renderParties();renderStats();
       };
       div.appendChild(sel);slotGrid.appendChild(div);
@@ -567,126 +608,333 @@ function renderParties(){
 function renderStats(){
   const grid=document.getElementById("statGrid");grid.innerHTML="";
   [...selectedMembers].forEach(name=>{
-    const cur=partyCounts[name]||0,max=maxCharsPerMember[name]||0;
-    const isFull=max>0&&cur>=max;
+    const cur=partyCounts[name]||0,max=maxCharsPerMember[name]||0,isFull=max>0&&cur>=max;
     const d=document.createElement("div");d.className="stat-pill";
     d.innerHTML=`<span class="stat-name">${name}</span><span class="stat-cur${isFull?" stat-full":""}">${cur}</span><span class="stat-max">/ ${max}</span>`;
     grid.appendChild(d);
   });
 }
 
-const APPS_URL = document.querySelector('#sheetUrl') ? null : null; // 런타임에 읽음
-function getUrl(){ return document.getElementById('sheetUrl').value.trim(); }
-
-function presetName(){
-  const now = new Date();
-  const mm = now.getMonth()+1, dd = now.getDate();
-  const raid = document.getElementById('raidSel').value;
-  const diff = document.getElementById('diffSel').value;
-  return `${mm}/${dd} ${raid} ${diff}`;
+// ── 칸반 ──
+function getPoolChars(){
+  const usedUids=new Set(allParties.flat().filter(s=>s).map(s=>s.uid));
+  const pool=[];
+  MEMBER_ORDER.filter(n=>selectedMembers.has(n)).forEach(name=>{
+    getEligibleChars(name).forEach(c=>{if(!usedUids.has(c.uid))pool.push(c);});
+  });
+  return pool;
 }
-
-function showPresetStatus(msg, type){
-  const el = document.getElementById('presetStatus');
-  el.style.display = 'inline-block';
-  el.textContent = msg;
-  el.className = 'preset-status preset-status-' + type;
-  setTimeout(()=>{ el.style.display='none'; }, 3000);
+function makeCharCard(char,src){
+  const card=document.createElement("div");
+  card.className="char-card"+(isSupport(char.cls)?" support-card":"");
+  card.draggable=true;
+  const doneTag=completedUids.has(char.uid)?'<span class="done-badge">완료</span>':'';
+  card.innerHTML=`<span class="cc-member">${char.member}${doneTag}</span><span class="cc-cls">${char.cls}</span><span class="cc-bp">${char.bp.toLocaleString()}</span>`;
+  if(completedUids.has(char.uid))card.classList.add("done");
+  card.addEventListener("dragstart",e=>{dragSrc=src;card.classList.add("dragging");e.dataTransfer.effectAllowed="move";});
+  card.addEventListener("dragend",()=>card.classList.remove("dragging"));
+  return card;
 }
+function setupDrop(el,onDrop){
+  el.addEventListener("dragover",e=>{e.preventDefault();el.classList.add("drag-over");});
+  el.addEventListener("dragleave",e=>{if(!el.contains(e.relatedTarget))el.classList.remove("drag-over");});
+  el.addEventListener("drop",e=>{e.preventDefault();e.stopPropagation();el.classList.remove("drag-over");onDrop();});
+}
+function renderKanban(){
+  const poolEl=document.getElementById("poolList");
+  const partiesEl=document.getElementById("kanbanParties");
+  const completedDropEl=document.getElementById("completedDropZone");
+  const completedListEl=document.getElementById("kanbanCompletedList");
+  poolEl.innerHTML="";partiesEl.innerHTML="";completedListEl.innerHTML="";
 
+  // 완료된 캐릭터 칸반에 표시
+  const weekKey=getWeekKey();
+  jsonpGet({action:'loadCompleted',weekKey}, data=>{
+    completedListEl.innerHTML="";
+    if(!data.length){
+      completedListEl.innerHTML='<span style="font-size:11px;color:var(--teal);opacity:.6;">완료된 캐릭터 없음</span>';
+      return;
+    }
+    data.forEach(d=>{
+      const pill=document.createElement("div");
+      pill.style.cssText="display:flex;flex-direction:column;gap:2px;padding:6px 10px;background:var(--surface);border:1px solid var(--teal-border);border-radius:var(--radius-sm);min-width:100px;";
+      pill.innerHTML=`<span style="font-size:12px;font-weight:700;color:var(--text);">${d.member}</span><span style="font-size:11px;color:var(--text2);">${d.cls}</span><span style="font-size:11px;color:var(--teal);font-weight:500;">${Number(d.bp).toLocaleString()}</span>`;
+      completedListEl.appendChild(pill);
+    });
+  });
+
+  // 완료 드롭존
+  setupDrop(completedDropEl,()=>{
+    if(!dragSrc)return;
+    const char=dragSrc.char;
+    const src=dragSrc;
+    // 이미 완료된 캐릭터면 무시
+    if(completedUids.has(char.uid)){dragSrc=null;return;}
+    // 파티 슬롯에서 제거
+    if(src.type==="slot"){
+      allParties[src.partyIdx][src.slotIdx]=null;
+      recalcCounts();
+    }
+    // 즉시 로컬 완료 처리
+    completedUids.add(char.uid);
+    completedCharData.push({uid:char.uid,member:char.member,cls:char.cls,bp:char.bp});
+    // 시트에 비동기 저장
+    const rec={uid:char.uid,member:char.member,cls:char.cls,bp:char.bp,
+      raid:document.getElementById('raidSel').value,
+      diff:document.getElementById('diffSel').value,weekKey};
+    fetch(getUrl(),{method:'POST',body:JSON.stringify({action:'saveCompleted',records:[rec]})}).catch(()=>{});
+    // 즉시 UI 갱신
+    renderCompletedList(completedCharData);
+    renderKanban();
+    renderParties();
+    renderStats();
+    dragSrc=null;
+  });
+
+  // 풀 카드
+  getPoolChars().forEach(char=>{
+    poolEl.appendChild(makeCharCard(char,{type:"pool",char}));
+  });
+  // 풀 드롭존
+  setupDrop(poolEl,()=>{
+    if(!dragSrc)return;
+    if(dragSrc.type==="slot"){
+      allParties[dragSrc.partyIdx][dragSrc.slotIdx]=null;
+      recalcCounts();renderKanban();renderParties();renderStats();
+    }
+    dragSrc=null;
+  });
+
+  // 파티 컬럼
+  allParties.forEach((slots,pi)=>{
+    const col=document.createElement("div");col.className="kanban-party";
+    const hdr=document.createElement("div");hdr.className="kanban-party-header";
+    const avg=avgBp(slots),cnt=filledCount(slots);
+    const titleSpan=document.createElement("span");titleSpan.className="kanban-party-title";titleSpan.textContent=`파티 ${pi+1}`;
+    const rightDiv=document.createElement("div");rightDiv.style.cssText="display:flex;align-items:center;gap:8px;";
+    const avgSpan=document.createElement("span");avgSpan.className="kanban-party-avg";avgSpan.textContent=cnt>0?`평균 ${avg.toLocaleString()}`:"";
+    const delBtn=document.createElement("button");delBtn.className="kanban-del-btn";delBtn.textContent="✕";delBtn.onclick=()=>{allParties.splice(pi,1);recalcCounts();document.getElementById("partyCountLabel").textContent=allParties.length;renderKanban();renderParties();renderStats();};
+    rightDiv.appendChild(avgSpan);rightDiv.appendChild(delBtn);
+    hdr.appendChild(titleSpan);hdr.appendChild(rightDiv);col.appendChild(hdr);
+
+    const slotsWrap=document.createElement("div");slotsWrap.className="kanban-slots";
+    slots.forEach((slot,si)=>{
+      const isSup=slot&&isSupport(slot.cls);
+      const zone=document.createElement("div");
+      zone.className="kanban-slot"+(isSup?" sup-slot":"")+(slot?" has-card":"");
+      // 슬롯 라벨
+      const tag=document.createElement("span");tag.className="slot-tag";
+      tag.textContent=`파티원 ${si+1}`;
+      if(!slot)zone.appendChild(tag);
+      // 카드
+      if(slot){
+        const card=makeCharCard(slot,{type:"slot",partyIdx:pi,slotIdx:si,char:slot});
+        zone.appendChild(card);
+      }
+      setupDrop(zone,()=>{
+        if(!dragSrc)return;
+        const srcChar=dragSrc.char;
+        const targetChar=allParties[pi][si];
+        // 같은 파티 내 같은 멤버 중복 방지
+        const partyMembers=allParties[pi].filter((s,i)=>s&&i!==si).map(s=>s.member);
+        if(partyMembers.includes(srcChar.member)){dragSrc=null;return;}
+        if(dragSrc.type==="pool"){
+          allParties[pi][si]=srcChar;
+          // 기존 카드는 풀로 자동 복귀 (usedUids에서 빠지므로 getPoolChars에서 반영)
+        } else if(dragSrc.type==="slot"){
+          // 같은 파티 내 이동이면 멤버 중복 체크 완화
+          const srcPartyMembers=allParties[dragSrc.partyIdx].filter((s,i)=>s&&i!==dragSrc.slotIdx).map(s=>s.member);
+          if(targetChar&&srcPartyMembers.includes(targetChar.member)&&dragSrc.partyIdx!==pi){dragSrc=null;return;}
+          allParties[dragSrc.partyIdx][dragSrc.slotIdx]=targetChar||null;
+          allParties[pi][si]=srcChar;
+        }
+        recalcCounts();renderKanban();renderParties();renderStats();
+        dragSrc=null;
+      });
+      slotsWrap.appendChild(zone);
+    });
+    col.appendChild(slotsWrap);
+    partiesEl.appendChild(col);
+  });
+
+  const addBtn=document.createElement("button");addBtn.className="kanban-add-btn";addBtn.textContent="+ 파티 추가";
+  addBtn.onclick=()=>{allParties.push([null,null,null,null]);document.getElementById("partyCountLabel").textContent=allParties.length;renderKanban();renderParties();};
+  partiesEl.appendChild(addBtn);
+}
+function kanbanAddParty(){allParties.push([null,null,null,null]);document.getElementById("partyCountLabel").textContent=allParties.length;renderKanban();renderParties();}
+function syncFromKanban(){renderParties();renderStats();switchTab("recommend");}
+
+// ── 프리셋 ──
+function getUrl(){return document.getElementById("sheetUrl").value.trim();}
+function presetName(){const now=new Date();return `${now.getMonth()+1}/${now.getDate()} ${document.getElementById("raidSel").value} ${document.getElementById("diffSel").value}`;}
+function showPresetStatus(msg,type){
+  const el=document.getElementById("presetStatus");
+  el.style.display="inline-block";el.textContent=msg;el.className="preset-status preset-status-"+type;
+  setTimeout(()=>{el.style.display="none";},3000);
+}
 function savePreset(){
-  if(!allParties.length){ showPresetStatus('저장할 파티 구성이 없습니다.','err'); return; }
-  const url = getUrl();
-  const name = presetName();
-  const raid = document.getElementById('raidSel').value;
-  const diff = document.getElementById('diffSel').value;
-  // 파티 데이터 직렬화 (uid 기반으로 저장)
-  const partiesData = allParties.map(slots =>
-    slots.map(slot => slot ? {member:slot.member, cls:slot.cls, ilvl:slot.ilvl, bp:slot.bp, uid:slot.uid, 세르카:slot.세르카, 성심당:slot.성심당} : null)
-  );
-  const members = [...selectedMembers].join(',');
-  fetch(url, {
-    method: 'POST',
-    body: JSON.stringify({ action:'savePreset', name, raid, diff, members, parties: partiesData })
-  })
-  .then(r=>r.json())
-  .then(d=>{ if(d.ok){ showPresetStatus(`'${name}' 저장 완료`,'ok'); loadPresets(); } else showPresetStatus('저장 실패','err'); })
-  .catch(()=>showPresetStatus('저장 실패: 네트워크 오류','err'));
+  if(!allParties.length){showPresetStatus("저장할 파티 구성이 없습니다.","err");return;}
+  const name=presetName();
+  const partiesData=allParties.map(slots=>slots.map(slot=>slot?{member:slot.member,cls:slot.cls,ilvl:slot.ilvl,bp:slot.bp,uid:slot.uid,세르카:slot.세르카,성심당:slot.성심당}:null));
+  fetch(getUrl(),{method:"POST",body:JSON.stringify({action:"savePreset",name,raid:document.getElementById("raidSel").value,diff:document.getElementById("diffSel").value,members:[...selectedMembers].join(","),parties:partiesData})})
+  .then(r=>r.json()).then(d=>{if(d.ok){showPresetStatus(`'${name}' 저장 완료`,"ok");loadPresets();}else showPresetStatus("저장 실패","err");})
+  .catch(()=>showPresetStatus("저장 실패: 네트워크 오류","err"));
 }
-
 function loadPresets(){
-  const url = getUrl();
-  fetch(url, {
-    method: 'POST',
-    body: JSON.stringify({ action:'loadPresets' })
-  })
-  .then(r=>r.json())
-  .then(data=>{ renderPresetList(data); document.getElementById('presetCard').style.display='block'; })
-  .catch(()=>showPresetStatus('불러오기 실패','err'));
+  fetch(getUrl(),{method:"POST",body:JSON.stringify({action:"loadPresets"})})
+  .then(r=>r.json()).then(data=>renderPresetList(data)).catch(()=>{});
+}
+function renderPresetList(presets){
+  const list=document.getElementById("presetList");list.innerHTML="";
+  if(!presets.length){list.innerHTML='<div class="preset-empty">저장된 프리셋이 없습니다.</div>';return;}
+  [...presets].reverse().forEach(p=>{
+    const item=document.createElement("div");item.className="preset-item";
+    const left=document.createElement("div");left.className="preset-item-left";
+    left.innerHTML=`<span class="preset-item-name">${p.name}</span><span class="preset-item-meta">${p.savedAt} · ${p.raid} ${p.diff}</span>`;
+    const btns=document.createElement("div");btns.className="preset-item-btns";
+    const lb=document.createElement("button");lb.className="btn btn-sm btn-primary";lb.textContent="불러오기";lb.onclick=()=>applyPreset(p);
+    const db=document.createElement("button");db.className="btn btn-sm";db.textContent="삭제";db.style.cssText="color:var(--red);border-color:#F09595;";db.onclick=()=>deletePreset(p);
+    btns.appendChild(lb);btns.appendChild(db);item.appendChild(left);item.appendChild(btns);list.appendChild(item);
+  });
+}
+function applyPreset(p){
+  const raidSel=document.getElementById("raidSel");raidSel.value=p.raid;onRaidChange();
+  document.getElementById("diffSel").value=p.diff;onDiffChange();
+  if(p.members){selectedMembers=new Set(p.members.split(",").map(s=>s.trim()).filter(Boolean));renderMembers();}
+  allParties=p.parties.map(slots=>slots.map(slot=>slot?{...slot}:null));
+  recalcCounts();
+  MEMBER_ORDER.filter(n=>selectedMembers.has(n)).forEach(n=>{maxCharsPerMember[n]=getEligibleChars(n).length;});
+  document.getElementById("partyCountLabel").textContent=allParties.length;
+  updateRaidLabel();
+  document.getElementById("mainTabs").style.display="block";
+  document.getElementById("completedCard").style.display="block";
+  // 완료 데이터 로드 후 파티에서 완료 캐릭터 반영
+  const weekKey=getWeekKey();
+  document.getElementById('weekLabel').textContent=getWeekLabelStr();
+  const raidNamePreset=document.getElementById('raidSel').value;
+  jsonpGet({action:'loadCompleted',weekKey,raid:raidNamePreset}, data=>{
+    completedUids=new Set(data.map(d=>d.uid));
+    completedCharData=data;
+    renderCompletedList(data);
+    // 프리셋 파티에서 완료된 캐릭터 슬롯 비우기
+    allParties.forEach((slots,pi)=>slots.forEach((s,si)=>{if(s&&completedUids.has(s.uid)){allParties[pi][si]=null;}}));
+    recalcCounts();
+    renderParties();renderStats();
+  }, ()=>{renderParties();renderStats();});
+  loadPresets();
+  showPresetStatus(`'${p.name}' 불러오기 완료`,"ok");
+}
+function deletePreset(p){
+  if(!confirm(`'${p.name}' 프리셋을 삭제할까요?`))return;
+  fetch(getUrl(),{method:"POST",body:JSON.stringify({action:"deletePreset",name:p.name,savedAt:p.savedAt})})
+  .then(r=>r.json()).then(()=>{showPresetStatus("삭제 완료","ok");loadPresets();}).catch(()=>showPresetStatus("삭제 실패","err"));
 }
 
-function renderPresetList(presets){
-  const list = document.getElementById('presetList');
-  list.innerHTML = '';
-  if(!presets.length){
-    list.innerHTML = '<div class="preset-empty">저장된 프리셋이 없습니다.</div>';
-    return;
-  }
-  [...presets].reverse().forEach((p,i)=>{
-    const idx = presets.length - 1 - i;
-    const item = document.createElement('div'); item.className='preset-item';
-    const left = document.createElement('div'); left.className='preset-item-left';
-    left.innerHTML = `<span class="preset-item-name">${p.name}</span><span class="preset-item-meta">${p.savedAt} · ${p.raid} ${p.diff}</span>`;
-    const btns = document.createElement('div'); btns.className='preset-item-btns';
-    const loadBtn = document.createElement('button'); loadBtn.className='btn btn-sm btn-primary'; loadBtn.textContent='불러오기';
-    loadBtn.onclick = ()=>applyPreset(p);
-    const delBtn = document.createElement('button'); delBtn.className='btn btn-sm'; delBtn.textContent='삭제';
-    delBtn.style.cssText='color:var(--red);border-color:#F09595;';
-    delBtn.onclick = ()=>deletePreset(p);
-    btns.appendChild(loadBtn); btns.appendChild(delBtn);
-    item.appendChild(left); item.appendChild(btns);
-    list.appendChild(item);
+// ── 완료 기록 ──
+let completedUids = new Set();
+let completedCharData = [];
+
+function getWeekKey() {
+  // 매주 수요일 00:00 기준 주차 키
+  const now = new Date();
+  const day = now.getDay(); // 0=일,1=월,...,3=수
+  const diff = (day >= 3) ? day - 3 : day + 4; // 이번 주 수요일까지의 차이
+  const wed = new Date(now);
+  wed.setDate(now.getDate() - diff);
+  wed.setHours(0,0,0,0);
+  return `${wed.getFullYear()}-${String(wed.getMonth()+1).padStart(2,'0')}-${String(wed.getDate()).padStart(2,'0')}`;
+}
+
+function getWeekLabelStr() {
+  const key = getWeekKey();
+  const wed = new Date(key);
+  const sun = new Date(wed); sun.setDate(wed.getDate() + 6);
+  const fmt = d => `${d.getMonth()+1}/${d.getDate()}`;
+  return `${fmt(wed)} ~ ${fmt(sun)}`;
+}
+
+// 완료 데이터 먼저 불러온 후 파티 구성
+function loadCompletedThenBuild() {
+  const weekKey = getWeekKey();
+  const raid = document.getElementById('raidSel').value;
+  document.getElementById('weekLabel').textContent = getWeekLabelStr();
+  jsonpGet({action:'loadCompleted', weekKey, raid}, data=>{
+    completedUids = new Set(data.map(d=>d.uid));
+    completedCharData = data;
+    renderCompletedList(data);
+    buildParties();
+  }, ()=>buildParties());
+}
+
+function loadCompleted() {
+  const weekKey = getWeekKey();
+  const raid = document.getElementById('raidSel').value;
+  document.getElementById('weekLabel').textContent = getWeekLabelStr();
+  jsonpGet({action:'loadCompleted', weekKey, raid}, data=>{
+    completedUids = new Set(data.map(d=>d.uid));
+    completedCharData = data;
+    renderCompletedList(data);
+    renderParties();
+    if(document.getElementById('tab-kanban').classList.contains('active')) renderKanban();
   });
 }
 
-function applyPreset(p){
-  // 레이드/난이도 복원
-  const raidSel = document.getElementById('raidSel');
-  raidSel.value = p.raid; onRaidChange();
-  const diffSel = document.getElementById('diffSel');
-  diffSel.value = p.diff; onDiffChange();
-  // 멤버 복원
-  if(p.members){
-    const mList = p.members.split(',').map(s=>s.trim()).filter(Boolean);
-    selectedMembers = new Set(mList);
-    renderMembers();
-  }
-  // 파티 복원
-  allParties = p.parties.map(slots =>
-    slots.map(slot => {
-      if(!slot) return null;
-      return { member:slot.member, cls:slot.cls, ilvl:slot.ilvl, bp:slot.bp, uid:slot.uid, 세르카:slot.세르카, 성심당:slot.성심당 };
-    })
-  );
-  recalcCounts();
-  // maxCharsPerMember 재계산
-  MEMBER_ORDER.filter(n=>selectedMembers.has(n)).forEach(n=>{ maxCharsPerMember[n]=getEligibleChars(n).length; });
-  document.getElementById('partyCountLabel').textContent = allParties.length;
-  renderParties(); renderStats();
-  document.getElementById('resultCard').style.display='block';
-  showPresetStatus(`'${p.name}' 불러오기 완료`,'ok');
+function renderCompletedList(data) {
+  const el = document.getElementById('completedList');
+  if(!data.length) { el.innerHTML='<span style="font-size:12px;color:var(--text3);">완료된 캐릭터가 없습니다.</span>'; return; }
+  el.innerHTML = '';
+  data.forEach(d => {
+    const pill = document.createElement('div');
+    pill.className = 'stat-pill';
+    pill.style.cssText = 'background:var(--teal-bg);border-color:var(--teal-border);';
+    pill.innerHTML = `<span class="stat-name" style="color:var(--teal);">${d.member}</span><span class="stat-cur" style="color:var(--teal);">${d.cls}</span><span class="stat-max">${d.bp.toLocaleString()}</span>`;
+    el.appendChild(pill);
+  });
 }
 
-function deletePreset(p){
-  if(!confirm(`'${p.name}' 프리셋을 삭제할까요?`)) return;
-  const url = getUrl();
-  fetch(url, {
-    method: 'POST',
-    body: JSON.stringify({ action:'deletePreset', name:p.name, savedAt:p.savedAt })
-  })
-  .then(r=>r.json())
-  .then(()=>{ showPresetStatus('삭제 완료','ok'); loadPresets(); })
-  .catch(()=>showPresetStatus('삭제 실패','err'));
+function toggleCompleted(slot, partyIdx, slotIdx) {
+  const weekKey = getWeekKey();
+  if (completedUids.has(slot.uid)) {
+    // 완료 취소: 즉시 로컬 업데이트
+    completedUids.delete(slot.uid);
+    fetch(getUrl(), {method:'POST', body:JSON.stringify({action:'removeCompleted', uid:slot.uid, weekKey})}).catch(()=>{});
+  } else {
+    // 완료 처리: 즉시 로컬 업데이트
+    completedUids.add(slot.uid);
+    // 파티 슬롯에서 제거
+    if(partyIdx !== undefined && slotIdx !== undefined) {
+      partyCounts[slot.member] = Math.max(0, (partyCounts[slot.member]||1)-1);
+      allParties[partyIdx][slotIdx] = null;
+    }
+    // 완료 현황에 즉시 추가
+    completedCharData.push({uid:slot.uid, member:slot.member, cls:slot.cls, bp:slot.bp});
+    // 시트에 비동기 저장
+    const rec = {uid:slot.uid, member:slot.member, cls:slot.cls, bp:slot.bp,
+      raid:document.getElementById('raidSel').value,
+      diff:document.getElementById('diffSel').value, weekKey};
+    // raid는 이미 포함됨
+    fetch(getUrl(), {method:'POST', body:JSON.stringify({action:'saveCompleted', records:[rec]})}).catch(()=>{});
+  }
+  // 즉시 UI 갱신
+  renderCompletedList(completedCharData);
+  renderParties();
+  renderStats();
+  document.getElementById('partyCountLabel').textContent = allParties.length;
+}
+
+function resetWeek() {
+  const raid = document.getElementById('raidSel').value;
+  if(!confirm(`${raid} 이번 주 완료 기록을 전부 초기화할까요?`)) return;
+  const weekKey = getWeekKey();
+  const uids = [...completedUids];
+  // 즉시 로컬 초기화
+  completedUids = new Set();
+  completedCharData = [];
+  renderCompletedList([]);
+  renderParties();
+  renderStats();
+  // 시트에서 비동기 삭제
+  uids.forEach(uid => fetch(getUrl(), {method:'POST', body:JSON.stringify({action:'removeCompleted', uid, weekKey})}).catch(()=>{}));
 }
 </script>
 </body>
