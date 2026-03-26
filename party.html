@@ -283,6 +283,28 @@ const RAIDS={
 };
 const SUPPORTS=["바드","홀나","도화가","발키리"];
 const BSAM=["창술사","블레","슬레","데헌","리퍼"];
+
+// 시너지 그룹 (같은 그룹 내 파티 중복 소프트 제한)
+const SYNERGY_GROUPS=[
+  ["디트","워로드","블래","딜바드","서머너","리퍼","딜도화가","환수사"],   // 방어력 감소
+  ["버서커","슬레","인파","브커","호크","소서","데모닉","소울","가나"],     // 피해 증가
+  ["기공","스카"],                                                          // 공격력 증가
+  ["배마","스커","데헌","건슬","알카","기상"],                              // 치명타 적중률 증가
+  ["딜홀나","발키리","창술사"],                                             // 치명타 공격 적중시 받는 피해 증가
+  ["워로드","고기","블레"],                                                  // 피해 증가 및 백헤드 피해 증가
+];
+
+// 캐릭터의 시너지 그룹 인덱스 반환 (-1이면 해당 없음)
+function getSynergyGroup(cls){
+  return SYNERGY_GROUPS.findIndex(g=>g.includes(cls));
+}
+
+// 파티에 같은 시너지 그룹 캐릭터가 있는지 체크
+function hasSynergyCls(p, cls){
+  const g=getSynergyGroup(cls);
+  if(g<0)return false;
+  return p.slots.some(s=>s&&getSynergyGroup(s.cls)===g&&s.cls!==cls);
+}
 const TEAM_A_SINGLE=["민트치킨","전복치킨"];
 const TEAM_A_MULTI=["카페룽고","잼둘냥"];
 const TEAM_B_SINGLE=["남제나","포지셔닝"];
@@ -434,8 +456,13 @@ function pickDealer(name,p,used,priority){
   let chars=getEligibleChars(name).filter(c=>!used.has(c.uid)&&!isSupport(c.cls));
   if(!chars.length)return null;
   chars.sort((a,b)=>priority==="lowest"?a.bp-b.bp:b.bp-a.bp);
-  // 백사멸 2개 이상은 가능하지만 우선순위 낮춤 (소프트 제한)
-  return chars.find(c=>!p.usedCls.has(c.cls)&&!(isBsam(c.cls)&&p.bsamCount>=2))||chars.find(c=>!p.usedCls.has(c.cls))||chars.find(c=>!(isBsam(c.cls)&&p.bsamCount>=3))||chars[0];
+  // 우선순위: 1)직업중복X+시너지중복X+백사멸2이하  2)직업중복X+시너지중복X  3)직업중복X+백사멸2이하  4)직업중복X  5)백사멸3이하  6)무조건
+  return chars.find(c=>!p.usedCls.has(c.cls)&&!hasSynergyCls(p,c.cls)&&!(isBsam(c.cls)&&p.bsamCount>=2))
+    ||chars.find(c=>!p.usedCls.has(c.cls)&&!hasSynergyCls(p,c.cls))
+    ||chars.find(c=>!p.usedCls.has(c.cls)&&!(isBsam(c.cls)&&p.bsamCount>=2))
+    ||chars.find(c=>!p.usedCls.has(c.cls))
+    ||chars.find(c=>!(isBsam(c.cls)&&p.bsamCount>=3))
+    ||chars[0];
 }
 function tryAssignSupport(p,order,used){
   const cand=order.filter(n=>selectedMembers.has(n)&&MEMBER_ORDER.includes(n)&&!p.usedMember.has(n)&&getEligibleChars(n).some(c=>!used.has(c.uid)&&isSupport(c.cls)));
@@ -469,7 +496,12 @@ function buildFreeParties(used,mCnt){
       const cands=MEMBER_ORDER.filter(n=>selectedMembers.has(n)&&rDQ[n]?.length>0&&!ep.usedMember.has(n)).sort((a,b)=>{const d=(mCnt[a]||0)-(mCnt[b]||0);return d||memberOrderIdx(a)-memberOrderIdx(b);});
       if(!cands.length)break;
       let picked=null,pickedChar=null;
-      outer1:for(const n of cands){for(const ch of rDQ[n]){if(ep.usedCls.has(ch.cls)||(isBsam(ch.cls)&&ep.bsamCount>=2))continue;picked=n;pickedChar=ch;break outer1;}} // 백사멸 2개까지 우선, 안되면 아래에서 허용
+      // 1순위: 직업중복X + 시너지중복X + 백사멸2이하
+      outer1:for(const n of cands){for(const ch of rDQ[n]){if(ep.usedCls.has(ch.cls)||hasSynergyCls(ep,ch.cls)||(isBsam(ch.cls)&&ep.bsamCount>=2))continue;picked=n;pickedChar=ch;break outer1;}}
+      // 2순위: 직업중복X + 시너지중복X
+      if(!picked){outer1b:for(const n of cands){for(const ch of rDQ[n]){if(ep.usedCls.has(ch.cls)||hasSynergyCls(ep,ch.cls))continue;picked=n;pickedChar=ch;break outer1b;}}}
+      // 3순위: 직업중복X + 백사멸2이하
+      if(!picked){outer1c:for(const n of cands){for(const ch of rDQ[n]){if(ep.usedCls.has(ch.cls)||(isBsam(ch.cls)&&ep.bsamCount>=2))continue;picked=n;pickedChar=ch;break outer1c;}}}
       if(!picked){outer2:for(const n of cands){for(const ch of rDQ[n]){if(ep.usedCls.has(ch.cls))continue;picked=n;pickedChar=ch;break outer2;}}}
       if(!picked){picked=cands[0];pickedChar=rDQ[picked][0];}
       if(picked&&pickedChar){addSlot(ep,pickedChar,used);rDQ[picked]=rDQ[picked].filter(c=>c.uid!==pickedChar.uid);mCnt[picked]=(mCnt[picked]||0)+1;}else break;
@@ -559,6 +591,10 @@ function partyBadges(slots){
   if(Object.values(clsCnt).some(v=>v>1))warns.push("직업 중복");
   if(Object.values(memberCnt).some(v=>v>1))warns.push("멤버 중복");
   if(bsamCnt>2)warns.push("백사멸 3개+");
+  // 시너지 중복 체크
+  const synGroups={};
+  slots.filter(s=>s).forEach(s=>{const g=getSynergyGroup(s.cls);if(g>=0){synGroups[g]=(synGroups[g]||0)+1;}});
+  if(Object.values(synGroups).some(v=>v>1))warns.push("시너지 중복");
   return{hasSupp,warns,bsamCnt,cnt:slots.filter(s=>s).length};
 }
 function renderParties(){
