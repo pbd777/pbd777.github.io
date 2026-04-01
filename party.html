@@ -985,7 +985,7 @@ function resetWeek() {
 function exportText(){
   const raidName = document.getElementById('raidSel').value;
   const diffName = document.getElementById('diffSel').value;
-  const prefix = `${raidName} ${diffName}`;
+  const prefix = `**${raidName} ${diffName}**`;
   const lines = allParties.map(slots=>{
     const members = slots.filter(s=>s).map(s=>`${s.member}-${s.cls}(${s.bp.toLocaleString()})`).join(', ');
     return `${prefix} : ${members}`;
