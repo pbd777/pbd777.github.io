@@ -842,9 +842,26 @@ function renderPresetList(presets){
   });
 }
 function applyPreset(p){
-  const raidSel=document.getElementById("raidSel");raidSel.value=p.raid;onRaidChange();
-  document.getElementById("diffSel").value=p.diff;onDiffChange();
-  if(p.members){selectedMembers=new Set(p.members.split(",").map(s=>s.trim()).filter(Boolean));renderMembers();}
+  // onRaidChange/onDiffChange 호출 없이 select 값만 세팅 (buildParties 실행 방지)
+  const raidSel=document.getElementById("raidSel");
+  const diffSel=document.getElementById("diffSel");
+  raidSel.value=p.raid;
+  // 난이도 옵션 수동 세팅
+  diffSel.innerHTML='<option value="">-- 난이도 --</option>';
+  if(RAIDS[p.raid]){
+    RAIDS[p.raid].forEach(d=>{
+      const o=document.createElement("option");o.value=d.label;o.textContent=d.label;diffSel.appendChild(o);
+    });
+  }
+  diffSel.value=p.diff;
+  currentDiff=RAIDS[p.raid]?RAIDS[p.raid].find(d=>d.label===p.diff):null;
+  const lr=document.getElementById("levelReq");
+  if(currentDiff){lr.textContent=`아이템 레벨 ${currentDiff.minIlvl}+`;lr.style.display="inline-block";}
+  // 멤버 복원
+  if(p.members){selectedMembers=new Set(p.members.split(",").map(s=>s.trim()).filter(Boolean));}
+  else{selectedMembers=new Set(MEMBER_ORDER);}
+  renderMembers();
+  // 파티 복원 (buildParties 실행 없이 직접 세팅)
   allParties=p.parties.map(slots=>slots.map(slot=>slot?{...slot}:null));
   recalcCounts();
   MEMBER_ORDER.filter(n=>selectedMembers.has(n)).forEach(n=>{maxCharsPerMember[n]=getEligibleChars(n).length;});
@@ -852,15 +869,14 @@ function applyPreset(p){
   updateRaidLabel();
   document.getElementById("mainTabs").style.display="block";
   document.getElementById("completedCard").style.display="block";
-  // 완료 데이터 로드 후 파티에서 완료 캐릭터 반영
+  document.getElementById("presetCard").style.display="block";
+  // 완료 데이터 로드 후 완료된 슬롯만 비우기
   const weekKey=getWeekKey();
   document.getElementById('weekLabel').textContent=getWeekLabelStr();
-  const raidNamePreset=document.getElementById('raidSel').value;
-  jsonpGet({action:'loadCompleted',weekKey,raid:raidNamePreset}, data=>{
+  jsonpGet({action:'loadCompleted',weekKey,raid:p.raid}, data=>{
     completedUids=new Set(data.map(d=>d.uid));
     completedCharData=data;
     renderCompletedList(data);
-    // 프리셋 파티에서 완료된 캐릭터 슬롯 비우기
     allParties.forEach((slots,pi)=>slots.forEach((s,si)=>{if(s&&completedUids.has(s.uid)){allParties[pi][si]=null;}}));
     recalcCounts();
     renderParties();renderStats();
