@@ -1002,11 +1002,12 @@ function exportText(){
   const raidName = document.getElementById('raidSel').value;
   const diffName = document.getElementById('diffSel').value;
   const prefix = `**${raidName} ${diffName}**`;
+  const divider = '='.repeat(69);
   const lines = allParties.map(slots=>{
     const members = slots.filter(s=>s).map(s=>`${s.member}-${s.cls}(${s.bp.toLocaleString()})`).join(', ');
     return `${prefix} : ${members}`;
   });
-  const text = lines.join('\n');
+  const text = `## ${raidName} ${diffName}\n` + lines.join('\n') + '\n' + divider;
   const box = document.getElementById('exportBox');
   box.textContent = text;
   box.style.display = 'block';
