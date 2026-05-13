@@ -295,15 +295,17 @@ const SYNERGY_GROUPS=[
 ];
 
 // 캐릭터의 시너지 그룹 인덱스 반환 (-1이면 해당 없음)
-function getSynergyGroup(cls){
-  return SYNERGY_GROUPS.findIndex(g=>g.includes(cls));
+function getSynergyGroup(cls,base){
+  const b=base||cleanCls(cls);
+  return SYNERGY_GROUPS.findIndex(g=>g.includes(b));
 }
 
 // 파티에 같은 시너지 그룹 캐릭터가 있는지 체크
-function hasSynergyCls(p, cls){
-  const g=getSynergyGroup(cls);
+function hasSynergyCls(p, cls, base){
+  const b=base||cleanCls(cls);
+  const g=getSynergyGroup(cls,b);
   if(g<0)return false;
-  return p.slots.some(s=>s&&getSynergyGroup(s.cls)===g&&s.cls!==cls);
+  return p.slots.some(s=>s&&getSynergyGroup(s.cls,s.baseCls)===g&&s.baseCls!==b);
 }
 const TEAM_A_SINGLE=["민트치킨","전복치킨"];
 const TEAM_A_MULTI=["카페룽고","잼둘냥"];
@@ -314,10 +316,11 @@ let MEMBERS_RAW=[],MEMBER_ORDER=[],selectedMembers=new Set(),currentDiff=null;
 let partyCounts={},allParties=[],maxCharsPerMember={};
 let dragSrc=null;
 
-const isSupport=cls=>SUPPORTS.includes(cls);
-const isBsam=cls=>BSAM.includes(cls);
+const isSupport=(cls,base)=>SUPPORTS.includes(base||cleanCls(cls));
+const isBsam=(cls,base)=>BSAM.includes(base||cleanCls(cls));
 const memberOrderIdx=n=>MEMBER_ORDER.indexOf(n);
-const cleanCls=cls=>String(cls).replace(/\d+$/,"").trim();
+const cleanCls=cls=>String(cls).replace(/\d+$/,"").trim(); // 시너지/서포터 판단용
+const rawCls=cls=>String(cls).trim(); // 표시용 (숫자 유지)
 
 function switchTab(name){
   document.querySelectorAll(".tab-btn").forEach((b,i)=>b.classList.toggle("active",["recommend","kanban"][i]===name));
@@ -394,7 +397,8 @@ function parseSheetData(rows){
       const ilvl=parseFloat(String(rows[r][base+1]||"").replace(/,/g,""));
       const bp=parseFloat(String(rows[r][base+2]||"").replace(/,/g,""));
       if(!ilvl||!bp)continue;
-      chars.push({cls:cleanCls(clsRaw),ilvl,bp,세르카:String(rows[r][base+3]||"").trim(),성심당:String(rows[r][base+4]||"").trim()});
+      const clsDisplay=rawCls(clsRaw);const clsBase=cleanCls(clsRaw);
+      chars.push({cls:clsDisplay,baseCls:clsBase,ilvl,bp,세르카:String(rows[r][base+3]||"").trim(),성심당:String(rows[r][base+4]||"").trim()});
     }
     if(chars.length)members.push({name,chars});
   }
@@ -412,7 +416,8 @@ function getEligibleChars(name){
   return m.chars
     .map((c,i)=>({...c,member:name,uid:name+"_"+i}))
     .filter(c=>charFits(c))
-    .filter(c=>!completedUids.has(c.uid));
+    .filter(c=>!completedUids.has(c.uid))
+    .map(c=>({...c,baseCls:c.baseCls||cleanCls(c.cls)}));
 }
 function onRaidChange(){
   const raid=document.getElementById("raidSel").value,ds=document.getElementById("diffSel");
@@ -448,7 +453,7 @@ function renderMembers(){
 
 // ── 자동 추천 ──
 const makeParty=()=>({slots:[],usedMember:new Set(),usedCls:new Set(),bsamCount:0});
-function addSlot(p,ch,used){p.slots.push(ch);p.usedMember.add(ch.member);p.usedCls.add(ch.cls);if(isBsam(ch.cls))p.bsamCount++;used.add(ch.uid);}
+function addSlot(p,ch,used){p.slots.push(ch);p.usedMember.add(ch.member);p.usedCls.add(ch.baseCls||cleanCls(ch.cls));if(isBsam(ch.cls,ch.baseCls))p.bsamCount++;used.add(ch.uid);}
 function sortP(p){p.slots.sort((a,b)=>memberOrderIdx(a.member)-memberOrderIdx(b.member));while(p.slots.length<4)p.slots.push(null);}
 const partyAvgBp=slots=>{const f=slots.filter(s=>s);return f.length?f.reduce((s,c)=>s+c.bp,0)/f.length:0;};
 const filledCount=slots=>slots.filter(s=>s).length;
@@ -457,11 +462,12 @@ function pickDealer(name,p,used,priority){
   if(!chars.length)return null;
   chars.sort((a,b)=>priority==="lowest"?a.bp-b.bp:b.bp-a.bp);
   // 우선순위: 1)직업중복X+시너지중복X+백사멸2이하  2)직업중복X+시너지중복X  3)직업중복X+백사멸2이하  4)직업중복X  5)백사멸3이하  6)무조건
-  return chars.find(c=>!p.usedCls.has(c.cls)&&!hasSynergyCls(p,c.cls)&&!(isBsam(c.cls)&&p.bsamCount>=2))
-    ||chars.find(c=>!p.usedCls.has(c.cls)&&!hasSynergyCls(p,c.cls))
-    ||chars.find(c=>!p.usedCls.has(c.cls)&&!(isBsam(c.cls)&&p.bsamCount>=2))
-    ||chars.find(c=>!p.usedCls.has(c.cls))
-    ||chars.find(c=>!(isBsam(c.cls)&&p.bsamCount>=3))
+  const bc=c=>c.baseCls||cleanCls(c.cls);
+  return chars.find(c=>!p.usedCls.has(bc(c))&&!hasSynergyCls(p,c.cls,bc(c))&&!(isBsam(c.cls,bc(c))&&p.bsamCount>=2))
+    ||chars.find(c=>!p.usedCls.has(bc(c))&&!hasSynergyCls(p,c.cls,bc(c)))
+    ||chars.find(c=>!p.usedCls.has(bc(c))&&!(isBsam(c.cls,bc(c))&&p.bsamCount>=2))
+    ||chars.find(c=>!p.usedCls.has(bc(c)))
+    ||chars.find(c=>!(isBsam(c.cls,bc(c))&&p.bsamCount>=3))
     ||chars[0];
 }
 function tryAssignSupport(p,order,used){
@@ -497,12 +503,12 @@ function buildFreeParties(used,mCnt){
       if(!cands.length)break;
       let picked=null,pickedChar=null;
       // 1순위: 직업중복X + 시너지중복X + 백사멸2이하
-      outer1:for(const n of cands){for(const ch of rDQ[n]){if(ep.usedCls.has(ch.cls)||hasSynergyCls(ep,ch.cls)||(isBsam(ch.cls)&&ep.bsamCount>=2))continue;picked=n;pickedChar=ch;break outer1;}}
+      outer1:for(const n of cands){for(const ch of rDQ[n]){const b=ch.baseCls||cleanCls(ch.cls);if(ep.usedCls.has(b)||hasSynergyCls(ep,ch.cls,b)||(isBsam(ch.cls,b)&&ep.bsamCount>=2))continue;picked=n;pickedChar=ch;break outer1;}}
       // 2순위: 직업중복X + 시너지중복X
-      if(!picked){outer1b:for(const n of cands){for(const ch of rDQ[n]){if(ep.usedCls.has(ch.cls)||hasSynergyCls(ep,ch.cls))continue;picked=n;pickedChar=ch;break outer1b;}}}
+      if(!picked){outer1b:for(const n of cands){for(const ch of rDQ[n]){const b=ch.baseCls||cleanCls(ch.cls);if(ep.usedCls.has(b)||hasSynergyCls(ep,ch.cls,b))continue;picked=n;pickedChar=ch;break outer1b;}}}
       // 3순위: 직업중복X + 백사멸2이하
-      if(!picked){outer1c:for(const n of cands){for(const ch of rDQ[n]){if(ep.usedCls.has(ch.cls)||(isBsam(ch.cls)&&ep.bsamCount>=2))continue;picked=n;pickedChar=ch;break outer1c;}}}
-      if(!picked){outer2:for(const n of cands){for(const ch of rDQ[n]){if(ep.usedCls.has(ch.cls))continue;picked=n;pickedChar=ch;break outer2;}}}
+      if(!picked){outer1c:for(const n of cands){for(const ch of rDQ[n]){const b=ch.baseCls||cleanCls(ch.cls);if(ep.usedCls.has(b)||(isBsam(ch.cls,b)&&ep.bsamCount>=2))continue;picked=n;pickedChar=ch;break outer1c;}}}
+      if(!picked){outer2:for(const n of cands){for(const ch of rDQ[n]){const b=ch.baseCls||cleanCls(ch.cls);if(ep.usedCls.has(b))continue;picked=n;pickedChar=ch;break outer2;}}}
       if(!picked){picked=cands[0];pickedChar=rDQ[picked][0];}
       if(picked&&pickedChar){addSlot(ep,pickedChar,used);rDQ[picked]=rDQ[picked].filter(c=>c.uid!==pickedChar.uid);mCnt[picked]=(mCnt[picked]||0)+1;}else break;
     }
@@ -586,14 +592,14 @@ const avgBp=slots=>{const f=slots.filter(s=>s);return f.length?Math.round(f.redu
 function partyBadges(slots){
   const clsCnt={},memberCnt={};let bsamCnt=0;
   const hasSupp=slots.some(s=>s&&isSupport(s.cls));
-  slots.filter(s=>s).forEach(s=>{clsCnt[s.cls]=(clsCnt[s.cls]||0)+1;memberCnt[s.member]=(memberCnt[s.member]||0)+1;if(isBsam(s.cls))bsamCnt++;});
+  slots.filter(s=>s).forEach(s=>{const b=s.baseCls||cleanCls(s.cls);clsCnt[b]=(clsCnt[b]||0)+1;memberCnt[s.member]=(memberCnt[s.member]||0)+1;if(isBsam(s.cls,b))bsamCnt++;});
   const warns=[];
   if(Object.values(clsCnt).some(v=>v>1))warns.push("직업 중복");
   if(Object.values(memberCnt).some(v=>v>1))warns.push("멤버 중복");
   if(bsamCnt>2)warns.push("백사멸 3개+");
   // 시너지 중복 체크
   const synGroups={};
-  slots.filter(s=>s).forEach(s=>{const g=getSynergyGroup(s.cls);if(g>=0){synGroups[g]=(synGroups[g]||0)+1;}});
+  slots.filter(s=>s).forEach(s=>{const b=s.baseCls||cleanCls(s.cls);const g=getSynergyGroup(s.cls,b);if(g>=0){synGroups[g]=(synGroups[g]||0)+1;}});
   if(Object.values(synGroups).some(v=>v>1))warns.push("시너지 중복");
   return{hasSupp,warns,bsamCnt,cnt:slots.filter(s=>s).length};
 }
@@ -842,26 +848,9 @@ function renderPresetList(presets){
   });
 }
 function applyPreset(p){
-  // onRaidChange/onDiffChange 호출 없이 select 값만 세팅 (buildParties 실행 방지)
-  const raidSel=document.getElementById("raidSel");
-  const diffSel=document.getElementById("diffSel");
-  raidSel.value=p.raid;
-  // 난이도 옵션 수동 세팅
-  diffSel.innerHTML='<option value="">-- 난이도 --</option>';
-  if(RAIDS[p.raid]){
-    RAIDS[p.raid].forEach(d=>{
-      const o=document.createElement("option");o.value=d.label;o.textContent=d.label;diffSel.appendChild(o);
-    });
-  }
-  diffSel.value=p.diff;
-  currentDiff=RAIDS[p.raid]?RAIDS[p.raid].find(d=>d.label===p.diff):null;
-  const lr=document.getElementById("levelReq");
-  if(currentDiff){lr.textContent=`아이템 레벨 ${currentDiff.minIlvl}+`;lr.style.display="inline-block";}
-  // 멤버 복원
-  if(p.members){selectedMembers=new Set(p.members.split(",").map(s=>s.trim()).filter(Boolean));}
-  else{selectedMembers=new Set(MEMBER_ORDER);}
-  renderMembers();
-  // 파티 복원 (buildParties 실행 없이 직접 세팅)
+  const raidSel=document.getElementById("raidSel");raidSel.value=p.raid;onRaidChange();
+  document.getElementById("diffSel").value=p.diff;onDiffChange();
+  if(p.members){selectedMembers=new Set(p.members.split(",").map(s=>s.trim()).filter(Boolean));renderMembers();}
   allParties=p.parties.map(slots=>slots.map(slot=>slot?{...slot}:null));
   recalcCounts();
   MEMBER_ORDER.filter(n=>selectedMembers.has(n)).forEach(n=>{maxCharsPerMember[n]=getEligibleChars(n).length;});
@@ -869,14 +858,15 @@ function applyPreset(p){
   updateRaidLabel();
   document.getElementById("mainTabs").style.display="block";
   document.getElementById("completedCard").style.display="block";
-  document.getElementById("presetCard").style.display="block";
-  // 완료 데이터 로드 후 완료된 슬롯만 비우기
+  // 완료 데이터 로드 후 파티에서 완료 캐릭터 반영
   const weekKey=getWeekKey();
   document.getElementById('weekLabel').textContent=getWeekLabelStr();
-  jsonpGet({action:'loadCompleted',weekKey,raid:p.raid}, data=>{
+  const raidNamePreset=document.getElementById('raidSel').value;
+  jsonpGet({action:'loadCompleted',weekKey,raid:raidNamePreset}, data=>{
     completedUids=new Set(data.map(d=>d.uid));
     completedCharData=data;
     renderCompletedList(data);
+    // 프리셋 파티에서 완료된 캐릭터 슬롯 비우기
     allParties.forEach((slots,pi)=>slots.forEach((s,si)=>{if(s&&completedUids.has(s.uid)){allParties[pi][si]=null;}}));
     recalcCounts();
     renderParties();renderStats();
@@ -1004,7 +994,7 @@ function exportText(){
   const prefix = `**${raidName} ${diffName}**`;
   const divider = '='.repeat(69);
   const lines = allParties.map(slots=>{
-    const members = slots.filter(s=>s).map(s=>`${s.member}-${s.cls}(${s.bp.toLocaleString()})`).join(', ');
+    const members = slots.filter(s=>s).map(s=>`${s.member}-${s.cls}`).join(', ');
     return `${prefix} : ${members}`;
   });
   const text = `## ${raidName} ${diffName}\n` + lines.join('\n') + '\n' + divider;
