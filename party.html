@@ -143,6 +143,18 @@ select{min-width:140px;cursor:pointer;}
   .slot-grid{grid-template-columns:repeat(2,1fr);}
 }
 
+/* 고정 파티 설정 */
+.fixed-party-section { margin-top:8px; }
+.fixed-party-list { display:flex; flex-direction:column; gap:8px; margin-top:8px; }
+.fixed-party-row { display:flex; align-items:center; gap:6px; flex-wrap:wrap; background:var(--surface2); border:1px solid var(--border); border-radius:var(--radius-sm); padding:8px 10px; }
+.fixed-party-label { font-size:11px; font-weight:700; color:var(--text3); min-width:48px; }
+.fixed-slot-sel { height:30px; font-size:12px; padding:0 8px; border-radius:4px; border:1px solid var(--border2); background:var(--surface); color:var(--text); font-family:inherit; cursor:pointer; min-width:100px; flex:1; }
+.fixed-slot-sel:focus { border-color:var(--accent); outline:none; }
+.fixed-party-del { height:26px; padding:0 10px; font-size:11px; border-radius:4px; border:1px solid #F09595; background:transparent; color:var(--red); cursor:pointer; font-family:inherit; white-space:nowrap; }
+.fixed-party-del:hover { background:var(--red-bg); }
+.fixed-add-btn { height:32px; padding:0 14px; font-size:12px; border-radius:var(--radius-sm); border:1.5px dashed var(--border2); background:none; color:var(--text3); cursor:pointer; font-family:inherit; transition:all .12s; margin-top:4px; }
+.fixed-add-btn:hover { border-color:var(--accent); color:var(--accent); }
+
 /* 완료 기록 */
 .completed-bar { display:flex; align-items:center; gap:8px; margin-bottom:12px; flex-wrap:wrap; }
 .week-label { font-size:11px; color:var(--text3); padding:3px 8px; background:var(--surface2); border:1px solid var(--border); border-radius:4px; }
@@ -163,13 +175,13 @@ select{min-width:140px;cursor:pointer;}
 <body>
 <div class="container">
   <h1>로스트아크 파티 빌더</h1>
-  <p class="subtitle">구글 시트 연동 · 전투력 기준 자동 조합 <span style="font-size:11px;color:var(--border2);margin-left:4px;">v19</span></p>
+  <p class="subtitle">구글 시트 연동 · 전투력 기준 자동 조합 <span style="font-size:11px;color:var(--border2);margin-left:4px;">v20</span></p>
 
   <div class="card">
     <div class="section-label">구글 시트 연동</div>
     <div class="row">
       <input type="text" id="sheetUrl" placeholder="Apps Script 웹 앱 URL"
-        value="https://script.google.com/macros/s/AKfycbz58J_WaVXSGr7bQbHSCDq9ix_SiB3GnpPE4hZPbVj1fFhkUqkEil0zthFtuhnQ26e2/exec"/>
+        value="https://script.google.com/macros/s/AKfycbxFhvBkuJxEWbmxGa7iwWOkDOShviBOpnpjYNeN6-7gOdtlqCycWivEa41vhT0-r9VH/exec"/>
       <button class="btn btn-primary" onclick="loadSheet()">불러오기</button>
     </div>
     <div id="statusBox" class="status-box"></div>
@@ -190,6 +202,14 @@ select{min-width:140px;cursor:pointer;}
     </div>
     <div class="section-label">참여 멤버</div>
     <div class="member-grid" id="memberGrid"></div>
+
+    <div class="fixed-party-section" id="fixedPartySection" style="display:none;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-top:14px;margin-bottom:4px;">
+        <div class="section-label" style="margin-bottom:0;">고정 파티 설정</div>
+        <button class="fixed-add-btn" onclick="addFixedParty()">+ 파티 추가</button>
+      </div>
+      <div class="fixed-party-list" id="fixedPartyList"></div>
+    </div>
   </div>
 
 
@@ -307,10 +327,133 @@ function hasSynergyCls(p, cls, base){
   if(g<0)return false;
   return p.slots.some(s=>s&&getSynergyGroup(s.cls,s.baseCls)===g&&s.baseCls!==b);
 }
-const TEAM_A_SINGLE=["민트치킨","전복치킨"];
-const TEAM_A_MULTI=["카페룽고","잼둘냥"];
-const TEAM_B_SINGLE=["남제나","포지셔닝"];
-const TEAM_B_MULTI=["아즈웬","신카"];
+// 고정 파티 설정 저장소: { [raidKey]: [ [member|"", member|"", member|"", member|""], ... ] }
+// raidKey = "성심당_3단계" 형식
+let fixedPartyConfig = {};
+
+function getFixedKey() {
+  const r = document.getElementById('raidSel').value;
+  const d = document.getElementById('diffSel').value;
+  if(!r||!d) return null;
+  return r+'_'+d;
+}
+function getFixedParties() {
+  const k = getFixedKey();
+  if(!k) return [];
+  return fixedPartyConfig[k] || [];
+}
+function saveFixedConfig() {
+  fetch(getUrl(), {method:'POST', body:JSON.stringify({action:'saveFixedParty', config:fixedPartyConfig})}).catch(()=>{});
+}
+function loadFixedConfig(onDone) {
+  jsonpGet({action:'loadFixedParty'}, data=>{
+    if(data && typeof data === 'object') fixedPartyConfig = data;
+    if(onDone) onDone();
+  }, ()=>{ if(onDone) onDone(); });
+}
+
+// slot 데이터 형태: {member:'', uid:''} — uid는 "name_index" 형식
+function makeFixedSlot(){ return {member:'', uid:''}; }
+
+function buildCharSelForFixedSlot(k, pi, si, slotData, container) {
+  // 멤버 셀렉트
+  const memberSel = document.createElement('select');
+  memberSel.className='fixed-slot-sel';
+  const roleLabel = si===3 ? '4번(서포터)' : `${si+1}번(딜러)`;
+  memberSel.innerHTML=`<option value="">${roleLabel} — 멤버 선택</option>`;
+  MEMBER_ORDER.forEach(name=>{
+    const opt=document.createElement('option');
+    opt.value=name; opt.textContent=name;
+    if(slotData.member===name) opt.selected=true;
+    memberSel.appendChild(opt);
+  });
+
+  // 캐릭터 셀렉트
+  const charSel = document.createElement('select');
+  charSel.className='fixed-slot-sel';
+
+  function refreshCharSel(memberName) {
+    charSel.innerHTML='<option value="">캐릭터 선택</option>';
+    if(!memberName){ charSel.style.display='none'; return; }
+    const m = MEMBERS_RAW.find(x=>x.name===memberName);
+    if(!m){ charSel.style.display='none'; return; }
+    // eligible 캐릭터만 표시 (currentDiff 기준)
+    const chars = m.chars
+      .map((c,i)=>({...c, uid:memberName+'_'+i}))
+      .filter(c=>charFits(c));
+    if(!chars.length){ charSel.innerHTML='<option value="">참여 가능 캐릭터 없음</option>'; charSel.style.display='inline-block'; return; }
+    chars.forEach(c=>{
+      const opt=document.createElement('option');
+      opt.value=c.uid;
+      opt.textContent=`${c.cls} · ${c.bp.toLocaleString()}`;
+      if(slotData.uid===c.uid) opt.selected=true;
+      charSel.appendChild(opt);
+    });
+    charSel.style.display='inline-block';
+  }
+
+  refreshCharSel(slotData.member);
+
+  memberSel.onchange=()=>{
+    fixedPartyConfig[k][pi][si].member = memberSel.value||'';
+    fixedPartyConfig[k][pi][si].uid = '';
+    refreshCharSel(memberSel.value);
+    saveFixedConfig();
+  };
+  charSel.onchange=()=>{
+    fixedPartyConfig[k][pi][si].uid = charSel.value||'';
+    saveFixedConfig();
+  };
+
+  container.appendChild(memberSel);
+  container.appendChild(charSel);
+}
+
+function renderFixedPartyList() {
+  const k = getFixedKey();
+  const section = document.getElementById('fixedPartySection');
+  if(!k || !MEMBERS_RAW.length) { section.style.display='none'; return; }
+  section.style.display='block';
+  const list = document.getElementById('fixedPartyList');
+  list.innerHTML='';
+  const parties = fixedPartyConfig[k] || [];
+  if(!parties.length) {
+    list.innerHTML='<div style="font-size:12px;color:var(--text3);padding:4px 2px;">고정 파티 없음 — 파티 추가를 눌러 설정하세요.</div>';
+    return;
+  }
+  parties.forEach((slots, pi) => {
+    const row = document.createElement('div');
+    row.className='fixed-party-row';
+    row.style.flexWrap='wrap';
+    const lbl = document.createElement('span');
+    lbl.className='fixed-party-label';
+    lbl.textContent=`파티 ${pi+1}`;
+    row.appendChild(lbl);
+    for(let si=0;si<4;si++){
+      const slotData = slots[si] || makeFixedSlot();
+      if(!slots[si]) { fixedPartyConfig[k][pi][si]=slotData; }
+      const wrap = document.createElement('div');
+      wrap.style.cssText='display:flex;gap:4px;align-items:center;flex:1;min-width:200px;';
+      buildCharSelForFixedSlot(k, pi, si, slotData, wrap);
+      row.appendChild(wrap);
+    }
+    const del = document.createElement('button');
+    del.className='fixed-party-del';
+    del.textContent='삭제';
+    del.onclick=()=>{ fixedPartyConfig[k].splice(pi,1); saveFixedConfig(); renderFixedPartyList(); };
+    row.appendChild(del);
+    list.appendChild(row);
+  });
+}
+
+function addFixedParty() {
+  const k = getFixedKey();
+  if(!k) return;
+  if(!fixedPartyConfig[k]) fixedPartyConfig[k]=[];
+  fixedPartyConfig[k].push([makeFixedSlot(),makeFixedSlot(),makeFixedSlot(),makeFixedSlot()]);
+  saveFixedConfig();
+  renderFixedPartyList();
+}
 
 let MEMBERS_RAW=[],MEMBER_ORDER=[],selectedMembers=new Set(),currentDiff=null;
 let partyCounts={},allParties=[],maxCharsPerMember={};
@@ -362,7 +505,7 @@ function loadSheet(){
       showStatus(`✓ ${MEMBERS_RAW.length}명 / 캐릭터 ${total}개 불러오기 완료`,"ok");
       document.getElementById("raidCard").style.display="block";
       document.getElementById("mainTabs").style.display="none";
-      renderMembers();
+      loadFixedConfig(()=>renderMembers());
     }catch(e){showStatus("파싱 오류: "+e.message,"err");}
   };
   script.onerror=()=>{cleanup();showStatus("불러오기 실패: 스크립트 로드 오류","err");};
@@ -432,10 +575,11 @@ function onDiffChange(){
   const raid=document.getElementById("raidSel").value,diff=document.getElementById("diffSel").value;
   document.getElementById("mainTabs").style.display="none";
   const lr=document.getElementById("levelReq");
-  if(!raid||!diff){lr.style.display="none";currentDiff=null;return;}
+  if(!raid||!diff){lr.style.display="none";currentDiff=null;document.getElementById('fixedPartySection').style.display='none';return;}
   currentDiff=RAIDS[raid].find(d=>d.label===diff);
   lr.textContent=`아이템 레벨 ${currentDiff.minIlvl}+`;lr.style.display="inline-block";
   renderMembers();
+  renderFixedPartyList();
   // 완료 데이터 먼저 로드 후 파티 구성
   loadCompletedThenBuild();
 }
@@ -454,7 +598,14 @@ function renderMembers(){
 // ── 자동 추천 ──
 const makeParty=()=>({slots:[],usedMember:new Set(),usedCls:new Set(),bsamCount:0});
 function addSlot(p,ch,used){p.slots.push(ch);p.usedMember.add(ch.member);p.usedCls.add(ch.baseCls||cleanCls(ch.cls));if(isBsam(ch.cls,ch.baseCls))p.bsamCount++;used.add(ch.uid);}
-function sortP(p){p.slots.sort((a,b)=>memberOrderIdx(a.member)-memberOrderIdx(b.member));while(p.slots.length<4)p.slots.push(null);}
+function sortP(p){
+  const sups=p.slots.filter(s=>s&&isSupport(s.cls));
+  const dls=p.slots.filter(s=>s&&!isSupport(s.cls));
+  dls.sort((a,b)=>memberOrderIdx(a.member)-memberOrderIdx(b.member));
+  while(dls.length<3)dls.push(null);
+  // 서포터는 무조건 4번째 슬롯
+  p.slots=[dls[0],dls[1],dls[2],sups[0]||null];
+}
 const partyAvgBp=slots=>{const f=slots.filter(s=>s);return f.length?f.reduce((s,c)=>s+c.bp,0)/f.length:0;};
 const filledCount=slots=>slots.filter(s=>s).length;
 function pickDealer(name,p,used,priority){
@@ -516,20 +667,6 @@ function buildFreeParties(used,mCnt){
   }
   return parties;
 }
-// A/B조 고정 편성 조건: 모든 A/B조 멤버의 최고bp 캐릭터가 완료되지 않아야 함
-function isABGroupBroken(){
-  const allAB=[...TEAM_A_SINGLE,...TEAM_A_MULTI,...TEAM_B_SINGLE,...TEAM_B_MULTI];
-  return allAB.some(name=>{
-    if(!selectedMembers.has(name)||!MEMBER_ORDER.includes(name))return false;
-    // 완료 제외 전 전체 eligible 캐릭터 중 최고bp 캐릭터
-    const m=MEMBERS_RAW.find(x=>x.name===name);
-    if(!m)return false;
-    const eligible=m.chars.filter(c=>charFits(c)).map((c,i)=>({...c,member:name,uid:name+"_"+i}));
-    if(!eligible.length)return false;
-    const topChar=eligible.reduce((a,b)=>b.bp>a.bp?b:a);
-    return completedUids.has(topChar.uid);
-  });
-}
 
 function buildParties(){
   if(!currentDiff||!MEMBERS_RAW.length)return;
@@ -537,21 +674,32 @@ function buildParties(){
   MEMBER_ORDER.filter(n=>selectedMembers.has(n)).forEach(n=>{maxCharsPerMember[n]=getEligibleChars(n).length;});
   const used=new Set(),mCnt={};MEMBER_ORDER.forEach(n=>{mCnt[n]=0;});
   let allP=[];
-  if(currentDiff.topTier && !isABGroupBroken()){
-    const p1=makeParty();
-    tryAssignSupport(p1,[...TEAM_A_SINGLE,...TEAM_A_MULTI],used);
-    for(const n of TEAM_A_SINGLE.filter(n=>selectedMembers.has(n)&&MEMBER_ORDER.includes(n)&&!p1.usedMember.has(n))){if(p1.slots.length>=4)break;const ch=pickDealer(n,p1,used,"highest");if(ch)addSlot(p1,ch,used);}
-    for(const n of TEAM_A_MULTI.filter(n=>selectedMembers.has(n)&&MEMBER_ORDER.includes(n)&&!p1.usedMember.has(n))){if(p1.slots.length>=4)break;const ch=pickDealer(n,p1,used,"lowest");if(ch)addSlot(p1,ch,used);}
-    sortP(p1);p1.slots.forEach(s=>{if(s)mCnt[s.member]=(mCnt[s.member]||0)+1;});
-    const p2=makeParty();
-    tryAssignSupport(p2,[...TEAM_B_SINGLE,...TEAM_B_MULTI],used);
-    for(const n of TEAM_B_SINGLE.filter(n=>selectedMembers.has(n)&&MEMBER_ORDER.includes(n)&&!p2.usedMember.has(n))){if(p2.slots.length>=4)break;const ch=pickDealer(n,p2,used,"highest");if(ch)addSlot(p2,ch,used);}
-    for(const n of TEAM_B_MULTI.filter(n=>selectedMembers.has(n)&&MEMBER_ORDER.includes(n)&&!p2.usedMember.has(n))){if(p2.slots.length>=4)break;const ch=pickDealer(n,p2,used,"lowest");if(ch)addSlot(p2,ch,used);}
-    sortP(p2);p2.slots.forEach(s=>{if(s)mCnt[s.member]=(mCnt[s.member]||0)+1;});
-    const extras=buildFreeParties(used,mCnt);
-    const fixed=[p1,p2].filter(p=>filledCount(p.slots)>=3);
-    allP=[...fixed,...extras];balanceParties(allP,fixed.length);
-  } else {allP=buildFreeParties(used,mCnt);balanceParties(allP,0);}
+
+  // 고정 파티 설정 적용
+  const fixedDefs=getFixedParties();
+  const fixedBuilt=[];
+  for(const def of fixedDefs){
+    const fp=makeParty();
+    for(let si=0;si<4;si++){
+      const slotDef=def[si];
+      if(!slotDef||!slotDef.uid||!slotDef.member)continue;
+      const name=slotDef.member;
+      if(!selectedMembers.has(name)||!MEMBER_ORDER.includes(name))continue;
+      if(fp.usedMember.has(name))continue;
+      // uid로 정확히 지정된 캐릭터를 찾되, 완료/미참가 제외
+      const ch=getEligibleChars(name).find(c=>c.uid===slotDef.uid&&!used.has(c.uid));
+      if(!ch)continue;
+      addSlot(fp,ch,used);
+    }
+    sortP(fp);
+    fp.slots.forEach(s=>{if(s)mCnt[s.member]=(mCnt[s.member]||0)+1;});
+    fixedBuilt.push(fp);
+  }
+
+  const extras=buildFreeParties(used,mCnt);
+  allP=[...fixedBuilt,...extras];
+  balanceParties(allP,fixedBuilt.length);
+
   allParties=allP.map(p=>p.slots);
   recalcCounts();
   updateRaidLabel();
