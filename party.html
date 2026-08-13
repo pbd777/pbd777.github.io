@@ -108,12 +108,11 @@ select{min-width:140px;cursor:pointer;}
 .preset-status-err{color:var(--red);background:var(--red-bg);}
 
 /* 칸반 탭 */
-.kanban-wrap{display:flex;gap:16px;align-items:flex-start;}
-.pool-panel{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px;width:180px;flex-shrink:0;box-shadow:0 1px 4px rgba(0,0,0,.06);}
+.pool-panel{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px;box-shadow:0 1px 4px rgba(0,0,0,.06);margin-bottom:12px;}
 .pool-title{font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px;}
-.pool-list{display:flex;flex-direction:column;gap:6px;min-height:60px;border-radius:var(--radius-sm);padding:4px;transition:all .12s;}
+.pool-list{display:flex;flex-direction:row;flex-wrap:wrap;gap:6px;min-height:60px;border-radius:var(--radius-sm);padding:4px;transition:all .12s;}
 .pool-list.drag-over{background:#E6F1FB;border:1.5px dashed var(--accent);}
-.kanban-parties{flex:1;min-width:0;display:flex;flex-direction:column;gap:10px;}
+.kanban-parties{display:flex;flex-direction:column;gap:10px;}
 .kanban-party{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,.05);}
 .kanban-party-header{display:flex;justify-content:space-between;align-items:center;padding:7px 12px;background:var(--surface2);border-bottom:1px solid var(--border);}
 .kanban-party-title{font-size:12px;font-weight:700;}
@@ -138,8 +137,6 @@ select{min-width:140px;cursor:pointer;}
 .kanban-del-btn:hover{color:var(--red);}
 
 @media(max-width:700px){
-  .kanban-wrap{flex-direction:column;}
-  .pool-panel{width:100%;}
   .slot-grid{grid-template-columns:repeat(2,1fr);}
 }
 
@@ -155,6 +152,18 @@ select{min-width:140px;cursor:pointer;}
 .complete-btn:hover { background:var(--teal); color:#fff; }
 .complete-btn.undo { border-color:#F09595; background:var(--red-bg); color:var(--red); }
 .complete-btn.undo:hover { background:var(--red); color:#fff; }
+
+/* 멤버별 완료 처리 */
+.member-complete-grid{display:flex;flex-direction:column;gap:8px;margin-bottom:14px;}
+.member-complete-row{display:flex;align-items:flex-start;gap:10px;padding:8px 10px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-sm);}
+.mcr-name{font-size:12px;font-weight:700;color:var(--text);width:64px;flex-shrink:0;padding-top:6px;}
+.mcr-chars{display:flex;flex-wrap:wrap;gap:6px;flex:1;}
+.mcr-char{display:flex;align-items:center;gap:6px;padding:5px 8px;background:var(--surface2);border:1px solid var(--border2);border-radius:var(--radius-sm);}
+.mcr-char.support{background:var(--sup-bg);border-color:var(--teal-border);}
+.mcr-char-info{display:flex;flex-direction:column;gap:1px;}
+.mcr-char-cls{font-size:11px;color:var(--text2);}
+.mcr-char-bp{font-size:11px;color:var(--accent);font-weight:500;}
+.mcr-empty{font-size:11px;color:var(--text3);padding-top:6px;}
 
 .export-box { margin-top:12px; background:var(--surface2); border:1px solid var(--border); border-radius:var(--radius-sm); padding:12px 14px; font-size:12px; color:var(--text2); line-height:1.8; white-space:pre-wrap; word-break:break-all; display:none; }
 .export-row { display:flex; gap:8px; align-items:center; margin-top:10px; }
@@ -233,6 +242,9 @@ select{min-width:140px;cursor:pointer;}
           <button class="btn btn-primary" onclick="buildParties()">다시 추천 ↺</button>
         </div>
       </div>
+      <div class="section-label">멤버별 완료 처리 — 배치 여부와 상관없이 바로 완료할 수 있습니다</div>
+      <div class="member-complete-grid" id="memberCompleteGrid"></div>
+      <div class="divider"></div>
       <div class="parties-wrap" id="partiesWrap"></div>
       <div class="divider"></div>
       <div class="section-label">멤버별 참여 횟수</div>
@@ -258,13 +270,11 @@ select{min-width:140px;cursor:pointer;}
         <div style="font-size:10px;font-weight:700;color:var(--teal);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px;">✓ 완료 — 여기에 드래그하면 완료 처리됩니다</div>
         <div id="kanbanCompletedList" style="display:flex;flex-wrap:wrap;gap:6px;min-height:32px;"></div>
       </div>
-      <div class="kanban-wrap">
-        <div class="pool-panel">
-          <div class="pool-title">미배치 캐릭터</div>
-          <div class="pool-list" id="poolList"></div>
-        </div>
-        <div class="kanban-parties" id="kanbanParties"></div>
+      <div class="pool-panel">
+        <div class="pool-title">미배치 캐릭터</div>
+        <div class="pool-list" id="poolList"></div>
       </div>
+      <div class="kanban-parties" id="kanbanParties"></div>
     </div>
   </div>
 </div>
@@ -699,7 +709,41 @@ function partyBadges(slots){
   if(Object.values(synGroups).some(v=>v>1))warns.push("시너지 중복");
   return{hasSupp,warns,bsamCnt,cnt:slots.filter(s=>s).length};
 }
+function renderMemberCompleteGrid(){
+  const grid=document.getElementById("memberCompleteGrid");
+  if(!grid)return;
+  grid.innerHTML="";
+  MEMBER_ORDER.filter(n=>selectedMembers.has(n)).forEach(name=>{
+    const chars=getEligibleChars(name);
+    const row=document.createElement("div");row.className="member-complete-row";
+    const nameEl=document.createElement("div");nameEl.className="mcr-name";nameEl.textContent=name;
+    row.appendChild(nameEl);
+    const charsEl=document.createElement("div");charsEl.className="mcr-chars";
+    if(!chars.length){
+      const em=document.createElement("span");em.className="mcr-empty";em.textContent="해당 레이드 캐릭터 없음";
+      charsEl.appendChild(em);
+    } else {
+      chars.forEach(c=>{
+        const isSup=isSupport(c.cls);
+        const item=document.createElement("div");item.className="mcr-char"+(isSup?" support":"");
+        const info=document.createElement("div");info.className="mcr-char-info";
+        info.innerHTML=`<span class="mcr-char-cls">${c.cls}</span><span class="mcr-char-bp">${c.bp.toLocaleString()}</span>`;
+        const btn=document.createElement("button");btn.className="complete-btn";btn.textContent="완료";
+        btn.onclick=(e)=>{e.stopPropagation();
+          const partyIdx=allParties.findIndex(slots=>slots.some(s=>s&&s.uid===c.uid));
+          const slotIdx=partyIdx>=0?allParties[partyIdx].findIndex(s=>s&&s.uid===c.uid):undefined;
+          toggleCompleted(c,partyIdx>=0?partyIdx:undefined,slotIdx);
+        };
+        item.appendChild(info);item.appendChild(btn);
+        charsEl.appendChild(item);
+      });
+    }
+    row.appendChild(charsEl);
+    grid.appendChild(row);
+  });
+}
 function renderParties(){
+  renderMemberCompleteGrid();
   const wrap=document.getElementById("partiesWrap");wrap.innerHTML="";
   allParties.forEach((slots,pi)=>{
     const avg=avgBp(slots);const{hasSupp,warns,bsamCnt,cnt}=partyBadges(slots);
