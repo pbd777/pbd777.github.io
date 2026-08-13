@@ -692,7 +692,13 @@ function getSlotOptions(pi,si){
   let pool=[];
   [...selectedMembers].forEach(name=>{getEligibleChars(name).forEach(c=>{if(otherUids.has(c.uid))return;if(sameMembers.has(c.member)&&!(cur&&c.uid===cur.uid))return;pool.push(c);});});
   if(cur)pool.push(cur);
-  return pool.filter((c,i,a)=>a.findIndex(x=>x.uid===c.uid)===i).sort((a,b)=>b.bp-a.bp);
+  return pool.filter((c,i,a)=>a.findIndex(x=>x.uid===c.uid)===i).sort((a,b)=>{
+    const mi=memberOrderIdx(a.member)-memberOrderIdx(b.member);
+    if(mi)return mi;
+    const si=isSupport(a.cls)-isSupport(b.cls);
+    if(si)return si;
+    return b.bp-a.bp;
+  });
 }
 const avgBp=slots=>{const f=slots.filter(s=>s);return f.length?Math.round(f.reduce((s,c)=>s+c.bp,0)/f.length):0;};
 function partyBadges(slots){
@@ -783,7 +789,11 @@ function renderParties(){
       const opts=getSlotOptions(pi,si);
       const sel=document.createElement("select");sel.className="slot-sel";
       sel.innerHTML='<option value="">변경...</option>';
-      opts.forEach((o,oi)=>{const opt=document.createElement("option");opt.value=oi;opt.textContent=`${o.member} · ${o.cls} · ${o.bp.toLocaleString()}`;if(slot&&o.uid===slot.uid)opt.selected=true;sel.appendChild(opt);});
+      let curGroup=null,curGroupEl=null;
+      opts.forEach((o,oi)=>{
+        if(o.member!==curGroup){curGroup=o.member;curGroupEl=document.createElement("optgroup");curGroupEl.label=curGroup;sel.appendChild(curGroupEl);}
+        const opt=document.createElement("option");opt.value=oi;opt.textContent=`${o.cls} · ${o.bp.toLocaleString()}`;if(slot&&o.uid===slot.uid)opt.selected=true;curGroupEl.appendChild(opt);
+      });
       sel.onchange=()=>{
         const prev=allParties[pi][si];
         if(sel.value===""){if(prev)partyCounts[prev.member]=Math.max(0,(partyCounts[prev.member]||1)-1);allParties[pi][si]=null;}
