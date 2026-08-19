@@ -165,6 +165,16 @@ select{min-width:140px;cursor:pointer;}
 .mcr-char-bp{font-size:11px;color:var(--accent);font-weight:500;}
 .mcr-empty{font-size:11px;color:var(--text3);padding-top:6px;}
 
+
+/* JSON 불러오기 */
+.json-input{width:100%;min-height:120px;resize:vertical;background:var(--surface);border:1px solid var(--border2);border-radius:var(--radius-sm);color:var(--text);font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px;line-height:1.55;padding:10px 12px;outline:none;transition:border-color .15s;}
+.json-input:focus{border-color:var(--accent);}
+.json-input::placeholder{color:var(--text3);}
+.json-hint{font-size:11px;color:var(--text3);line-height:1.7;margin-bottom:8px;}
+.json-format{margin-top:10px;}
+.json-format summary{font-size:11px;color:var(--text2);cursor:pointer;user-select:none;}
+.json-format summary:hover{color:var(--accent);}
+.json-format pre{margin-top:8px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:10px 12px;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:11px;line-height:1.65;color:var(--text2);overflow-x:auto;}
 .export-box { margin-top:12px; background:var(--surface2); border:1px solid var(--border); border-radius:var(--radius-sm); padding:12px 14px; font-size:12px; color:var(--text2); line-height:1.8; white-space:pre-wrap; word-break:break-all; display:none; }
 .export-row { display:flex; gap:8px; align-items:center; margin-top:10px; }
 </style>
@@ -182,6 +192,47 @@ select{min-width:140px;cursor:pointer;}
       <button class="btn btn-primary" onclick="loadSheet()">불러오기</button>
     </div>
     <div id="statusBox" class="status-box"></div>
+  </div>
+
+  <div class="card" id="jsonCard">
+    <div class="section-label">JSON으로 파티 구성 채우기</div>
+    <p class="json-hint">
+      파티 구성 JSON을 붙여넣고 <b>JSON 적용</b>을 누르면 아래 파티 구성 창이 그대로 채워집니다.<br>
+      시트 원본 데이터(2차원 배열) JSON을 넣으면 캐릭터 목록으로 불러옵니다. 코드펜스(```)나 JSONP 래퍼가 섞여 있어도 자동으로 걸러냅니다.
+    </p>
+    <textarea id="jsonInput" class="json-input" spellcheck="false" placeholder='{"raid":"세르카","diff":"하드","parties":[[{"member":"민트치킨","cls":"바드"},{"member":"카페룽고","cls":"버서커"},null,null]]}'></textarea>
+    <div class="row" style="margin-top:8px;">
+      <button class="btn btn-primary" onclick="applyJsonInput()">JSON 적용</button>
+      <button class="btn" onclick="pasteJsonFromClipboard()">클립보드에서 붙여넣기</button>
+      <button class="btn" onclick="fillJsonWithCurrent()">현재 구성 JSON 넣기</button>
+      <button class="btn" onclick="clearJsonInput()">지우기</button>
+    </div>
+    <div id="jsonStatus" class="status-box"></div>
+    <details class="json-format">
+      <summary>지원하는 JSON 형식 보기</summary>
+      <pre>① 파티 구성 (권장)
+{
+  "raid": "세르카",
+  "diff": "하드",
+  "members": "민트치킨,카페룽고",
+  "parties": [
+    [ {"member":"민트치킨","cls":"바드"}, {"member":"카페룽고","cls":"버서커"}, null, null ]
+  ]
+}
+
+② 파티 배열만 — "멤버-직업" 문자열도 인식
+[ ["민트치킨-바드", "카페룽고-버서커"], ["남제나-소서", "아즈웬-리퍼"] ]
+
+③ 캐릭터 평면 배열 — 4명씩 한 파티로 묶임
+[ {"member":"민트치킨","cls":"바드"}, {"member":"카페룽고","cls":"버서커"} ]
+
+④ 시트 원본 데이터 — 2차원 배열 그대로 또는 rows 로 감싸서
+{ "raid":"세르카", "diff":"하드", "rows": [ ["민트치킨","직업","아이템 레벨","전투력", ...], ... ] }
+
+· 시트를 먼저 불러온 상태면 member+cls 로 전투력·아이템 레벨·uid 를 자동으로 채웁니다.
+· 시트에 없는 캐릭터는 JSON 안의 bp / ilvl / uid 값을 그대로 사용합니다.
+· raid / diff 가 있으면 레이드·난이도 선택도 함께 맞춰집니다.</pre>
+    </details>
   </div>
 
   <div id="raidCard" class="card" style="display:none;">
@@ -251,6 +302,7 @@ select{min-width:140px;cursor:pointer;}
       <div class="stat-grid" id="statGrid"></div>
       <div class="export-row">
         <button class="btn" onclick="exportText()">텍스트로 출력</button>
+        <button class="btn" onclick="exportJson()">JSON으로 출력</button>
         <button class="btn btn-sm" id="copyBtn" onclick="copyExport()" style="display:none;">복사</button>
       </div>
       <div class="export-box" id="exportBox"></div>
@@ -1151,6 +1203,242 @@ function resetWeek() {
   renderStats();
   // 시트에서 비동기 삭제
   uids.forEach(uid => fetch(getUrl(), {method:'POST', body:JSON.stringify({action:'removeCompleted', uid, weekKey})}).catch(()=>{}));
+}
+
+// ── JSON 불러오기 / 내보내기 ──
+let jsonUidSeq=0;
+
+function showJsonStatus(msg,type){
+  const el=document.getElementById("jsonStatus");
+  el.style.display="block";el.textContent=msg;el.className="status-box status-"+type;
+}
+function clearJsonInput(){
+  document.getElementById("jsonInput").value="";
+  document.getElementById("jsonStatus").style.display="none";
+}
+function pasteJsonFromClipboard(){
+  if(!navigator.clipboard||!navigator.clipboard.readText){
+    showJsonStatus("이 브라우저에서는 클립보드 읽기를 지원하지 않습니다. 직접 붙여넣어 주세요.","err");return;
+  }
+  navigator.clipboard.readText()
+    .then(t=>{document.getElementById("jsonInput").value=t;applyJsonInput();})
+    .catch(()=>showJsonStatus("클립보드를 읽지 못했습니다. 직접 붙여넣어 주세요.","err"));
+}
+
+// 코드펜스 / JSONP 래퍼( cb({...}); ) 제거
+function extractJsonText(raw){
+  let t=String(raw||"").trim();
+  if(!t)return "";
+  if(t.slice(0,3)==="```"){t=t.replace(/^`{3}[a-zA-Z]*\s*/,"").replace(/`{3}\s*$/,"").trim();}
+  const m=t.match(/^[A-Za-z_$][\w$]*\s*\(([\s\S]*)\)\s*;?$/);
+  if(m)t=m[1].trim();
+  return t.replace(/;$/,"").trim();
+}
+
+function applyJsonInput(){
+  const text=extractJsonText(document.getElementById("jsonInput").value);
+  if(!text){showJsonStatus("JSON을 붙여넣어 주세요.","err");return;}
+  let data;
+  try{data=JSON.parse(text);}
+  catch(e){showJsonStatus("JSON 형식 오류: "+e.message,"err");return;}
+  try{applyJsonData(data);}
+  catch(e){showJsonStatus("적용 실패: "+e.message,"err");}
+}
+
+const isPlainRow=r=>Array.isArray(r)&&r.every(v=>v===null||typeof v!=="object");
+const isMemberEntry=m=>m&&typeof m==="object"&&!Array.isArray(m)&&m.name&&Array.isArray(m.chars);
+// 2차원 배열이 시트 원본인지 판단 (헤더 키워드 또는 아이템 레벨 숫자로 구분)
+// → ["민트치킨-바드", ...] 같은 파티 문자열 배열과 헷갈리지 않도록
+function looksLikeSheetRows(rows){
+  if(!Array.isArray(rows)||rows.length<2||!rows.every(isPlainRow))return false;
+  const flat=rows.flat().map(v=>String(v==null?"":v).trim());
+  if(flat.some(v=>["직업","아이템 레벨","아이템레벨","전투력"].includes(v)))return true;
+  return flat.filter(v=>v&&!isNaN(v)&&Number(v)>=1000).length>=2;
+}
+
+function applyJsonData(data){
+  if(data===null||data===undefined)throw new Error("빈 JSON입니다.");
+  const meta=(!Array.isArray(data)&&typeof data==="object")?data:{};
+  // ① 시트 원본 데이터 (2차원 배열 / {rows:[...]})
+  if(Array.isArray(meta.rows)){applyMembersFromRows(meta.rows,meta);return;}
+  if(looksLikeSheetRows(data)){applyMembersFromRows(data,{});return;}
+  // ② 파싱된 멤버 데이터 ([{name,chars:[...]}] / {members:[{...}]})
+  const memberList=Array.isArray(data)?data:(Array.isArray(meta.members)?meta.members:null);
+  if(memberList&&memberList.length&&memberList.every(isMemberEntry)){applyMembersDirect(memberList,meta);return;}
+  // ③ 파티 구성
+  const parties=extractParties(data);
+  if(parties&&parties.length){applyPartiesJson(parties,meta);return;}
+  throw new Error("인식할 수 있는 형식이 아닙니다. '지원하는 JSON 형식 보기'를 확인해 주세요.");
+}
+
+function extractParties(data){
+  let src=null;
+  if(Array.isArray(data))src=data;
+  else if(data&&typeof data==="object"){
+    src=data.parties||data.party||data.slots||(Array.isArray(data.data)?data.data:null);
+  }
+  if(!Array.isArray(src)||!src.length)return null;
+  // [[슬롯,...],[...]] 형태
+  if(src.every(p=>Array.isArray(p)))return src.map(p=>p.map(normalizeSlot));
+  // [{slots:[...]},...] 형태
+  if(src.every(p=>p&&typeof p==="object"&&Array.isArray(p.slots)))return src.map(p=>p.slots.map(normalizeSlot));
+  // 캐릭터 평면 배열 → 4명씩 한 파티
+  const flatOk=src.every(s=>s===null||typeof s==="string"||(s&&typeof s==="object"&&(s.member||s.name||s.cls)));
+  if(!flatOk)return null;
+  const flat=src.map(normalizeSlot),out=[];
+  for(let i=0;i<flat.length;i+=4)out.push(flat.slice(i,i+4));
+  return out;
+}
+
+// 슬롯 1칸 → 캐릭터 객체 ("멤버-직업" 문자열 또는 {member,cls,...})
+function normalizeSlot(raw){
+  if(raw===null||raw===undefined||raw==="")return null;
+  let member="",cls="",info=null;
+  if(typeof raw==="string"){
+    const s=raw.trim();
+    if(!s||s==="-"||s==="—"||s==="빈 슬롯")return null;
+    const parts=s.split(/\s*[-–—/·|:]\s*/);
+    if(parts.length>=2){member=parts[0].trim();cls=parts.slice(1).join("-").trim();}
+    else{const sp=s.split(/\s+/);member=(sp[0]||"").trim();cls=sp.slice(1).join(" ").trim();}
+  }else if(typeof raw==="object"&&!Array.isArray(raw)){
+    info=raw;
+    member=String(raw.member||raw.name||raw["멤버"]||"").trim();
+    cls=String(raw.cls||raw.class||raw["직업"]||"").trim();
+  }else return null;
+  if(!member&&!cls)return null;
+  return resolveJsonChar(member,cls,info);
+}
+
+// 시트 데이터가 있으면 실제 캐릭터(전투력/아이템레벨/uid)로 매칭
+function resolveJsonChar(member,cls,info){
+  const m=MEMBERS_RAW.find(x=>x.name===member);
+  if(m){
+    let idx=-1;
+    if(info&&info.uid&&String(info.uid).indexOf(member+"_")===0){
+      const n=parseInt(String(info.uid).slice(member.length+1),10);
+      if(!isNaN(n)&&m.chars[n]&&(!cls||cleanCls(m.chars[n].cls)===cleanCls(cls)))idx=n;
+    }
+    if(idx<0&&cls)idx=m.chars.findIndex(c=>rawCls(c.cls)===rawCls(cls));
+    if(idx<0&&cls)idx=m.chars.findIndex(c=>cleanCls(c.cls)===cleanCls(cls));
+    if(idx>=0){
+      const c=m.chars[idx];
+      return{...c,member,cls:rawCls(c.cls),baseCls:c.baseCls||cleanCls(c.cls),uid:member+"_"+idx};
+    }
+  }
+  const num=v=>Number(String(v==null?"":v).replace(/,/g,""))||0;
+  return{
+    member,cls:rawCls(cls||"?"),baseCls:cleanCls(cls||"?"),
+    ilvl:num(info&&info.ilvl),bp:num(info&&info.bp),
+    uid:(info&&info.uid)?String(info.uid):("json_"+member+"_"+(++jsonUidSeq)),
+    "세르카":(info&&info["세르카"])||"","성심당":(info&&info["성심당"])||"","벨가르딘":(info&&info["벨가르딘"])||""
+  };
+}
+
+// 레이드/난이도 select 맞추기 (buildParties 실행 없음)
+function selectRaidDiff(raid,diff){
+  if(!raid||!RAIDS[raid])return false;
+  document.getElementById("raidSel").value=raid;
+  const ds=document.getElementById("diffSel");
+  ds.innerHTML='<option value="">-- 난이도 --</option>';
+  RAIDS[raid].forEach(d=>{const o=document.createElement("option");o.value=d.label;o.textContent=d.label;ds.appendChild(o);});
+  const found=diff?RAIDS[raid].find(d=>d.label===diff):null;
+  if(!found)return false;
+  ds.value=diff;currentDiff=found;
+  const lr=document.getElementById("levelReq");
+  lr.textContent=`아이템 레벨 ${currentDiff.minIlvl}+`;lr.style.display="inline-block";
+  return true;
+}
+
+function applyPartiesJson(parties,meta){
+  meta=meta||{};
+  selectRaidDiff(String(meta.raid||"").trim(),String(meta.diff||"").trim());
+  const slotChars=parties.flat().filter(Boolean);
+  const slotMembers=[...new Set(slotChars.map(s=>s.member))];
+  // 참여 멤버 복원
+  let mset=null;
+  if(typeof meta.members==="string"&&meta.members.trim())mset=meta.members.split(",").map(s=>s.trim()).filter(Boolean);
+  else if(Array.isArray(meta.members)&&meta.members.every(v=>typeof v==="string"))mset=meta.members.map(s=>s.trim()).filter(Boolean);
+  if(mset&&mset.length)selectedMembers=new Set(mset);
+  else if(MEMBER_ORDER.length)selectedMembers=new Set(MEMBER_ORDER);
+  else selectedMembers=new Set(slotMembers);
+  // 파티 채우기 (슬롯 최소 4칸)
+  allParties=parties.map(slots=>{const s=slots.map(x=>x||null);while(s.length<4)s.push(null);return s;});
+  recalcCounts();
+  maxCharsPerMember={};
+  MEMBER_ORDER.filter(n=>selectedMembers.has(n)).forEach(n=>{maxCharsPerMember[n]=getEligibleChars(n).length;});
+  document.getElementById("partyCountLabel").textContent=allParties.length;
+  updateRaidLabel();
+  if(MEMBERS_RAW.length)document.getElementById("raidCard").style.display="block";
+  document.getElementById("mainTabs").style.display="block";
+  document.getElementById("presetCard").style.display="block";
+  document.getElementById("completedCard").style.display="block";
+  document.getElementById("weekLabel").textContent=getWeekLabelStr();
+  renderMembers();renderCompletedList(completedCharData);renderParties();renderStats();
+  switchTab("recommend");
+  const unresolved=slotChars.filter(s=>String(s.uid).indexOf("json_")===0).length;
+  let msg=`✓ ${allParties.length}개 파티 / 캐릭터 ${slotChars.length}명을 파티 구성 창에 채웠습니다.`;
+  if(unresolved)msg+=` (시트에서 찾지 못한 ${unresolved}명은 JSON 값 그대로 표시됩니다)`;
+  if(!MEMBERS_RAW.length)msg+=" 시트를 불러오면 슬롯 변경·완료 처리도 사용할 수 있습니다.";
+  showJsonStatus(msg,"ok");
+}
+
+function applyMembersFromRows(rows,meta){
+  const parsed=parseSheetData(rows);
+  if(!parsed.length)throw new Error("캐릭터 데이터를 찾을 수 없습니다.");
+  applyMembersDirect(parsed,meta);
+}
+
+function applyMembersDirect(list,meta){
+  meta=meta||{};
+  const num=v=>Number(String(v==null?"":v).replace(/,/g,""))||0;
+  MEMBERS_RAW=list.map(m=>({
+    name:String(m.name).trim(),
+    chars:(m.chars||[]).map(c=>({...c,cls:rawCls(c.cls),baseCls:c.baseCls||cleanCls(c.cls),ilvl:num(c.ilvl),bp:num(c.bp)}))
+  })).filter(m=>m.name&&m.chars.length);
+  if(!MEMBERS_RAW.length)throw new Error("캐릭터 데이터를 찾을 수 없습니다.");
+  MEMBER_ORDER=MEMBERS_RAW.map(m=>m.name);
+  selectedMembers=new Set(MEMBER_ORDER);
+  const total=MEMBERS_RAW.reduce((s,m)=>s+m.chars.length,0);
+  document.getElementById("raidCard").style.display="block";
+  renderMembers();
+  const base=`✓ JSON에서 ${MEMBERS_RAW.length}명 / 캐릭터 ${total}개를 불러왔습니다.`;
+  // 같은 JSON에 파티 구성이 함께 있으면 이어서 적용
+  const parties=extractParties(meta);
+  if(parties&&parties.length){
+    applyPartiesJson(parties,meta);
+    showJsonStatus(`${base} 파티 ${allParties.length}개를 파티 구성 창에 채웠습니다.`,"ok");
+    return;
+  }
+  // raid/diff 가 있으면 자동 추천까지
+  if(selectRaidDiff(String(meta.raid||"").trim(),String(meta.diff||"").trim())){
+    showJsonStatus(`${base} ${meta.raid} ${meta.diff} 기준으로 파티를 구성합니다.`,"ok");
+    loadCompletedThenBuild();
+    return;
+  }
+  document.getElementById("mainTabs").style.display="none";
+  showJsonStatus(`${base} 레이드와 난이도를 선택하세요.`,"ok");
+}
+
+// 현재 파티 구성 → JSON
+function currentPartyJson(){
+  return JSON.stringify({
+    raid:document.getElementById("raidSel").value,
+    diff:document.getElementById("diffSel").value,
+    members:[...selectedMembers].join(","),
+    parties:allParties.map(slots=>slots.map(s=>s?{member:s.member,cls:s.cls,ilvl:s.ilvl,bp:s.bp,uid:s.uid}:null))
+  },null,2);
+}
+function fillJsonWithCurrent(){
+  if(!allParties.length){showJsonStatus("현재 파티 구성이 없습니다.","err");return;}
+  document.getElementById("jsonInput").value=currentPartyJson();
+  showJsonStatus("현재 파티 구성을 JSON으로 채웠습니다. 복사해서 공유하세요.","ok");
+}
+function exportJson(){
+  if(!allParties.length)return;
+  const box=document.getElementById("exportBox");
+  box.textContent=currentPartyJson();
+  box.style.display="block";
+  document.getElementById("copyBtn").style.display="inline-block";
 }
 
 // ── 텍스트 출력 ──
