@@ -41,6 +41,13 @@ select{min-width:140px;cursor:pointer;}
 .status-err{background:var(--red-bg);border:1px solid #F09595;color:var(--red);}
 .status-load{background:var(--surface2);border:1px solid var(--border);color:var(--text2);}
 .member-grid{display:flex;flex-wrap:wrap;gap:6px;}
+.time-section{margin-top:14px;}
+.time-grid{display:flex;flex-wrap:wrap;gap:10px;}
+.time-item{display:flex;flex-direction:column;gap:4px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:8px 10px;min-width:110px;}
+.time-item-name{font-size:12px;font-weight:600;color:var(--text);}
+.time-select{height:28px;font-size:11px;border-radius:4px;border:1px solid var(--border2);background:var(--surface);color:var(--text2);padding:0 6px;font-family:inherit;cursor:pointer;}
+.time-mismatch{border-color:var(--amber-bg)!important;}
+.badge-time{background:var(--amber-bg);color:var(--amber);border:1px solid #FAC775;}
 .member-chip{display:flex;align-items:center;gap:5px;padding:4px 10px;border-radius:20px;border:1px solid var(--border2);cursor:pointer;font-size:12px;background:var(--surface2);color:var(--text2);user-select:none;transition:all .12s;}
 .member-chip.active{background:#E6F1FB;border-color:#85B7EB;color:#0C447C;}
 .member-chip .dot{width:6px;height:6px;border-radius:50%;background:var(--border2);flex-shrink:0;}
@@ -108,11 +115,12 @@ select{min-width:140px;cursor:pointer;}
 .preset-status-err{color:var(--red);background:var(--red-bg);}
 
 /* 칸반 탭 */
-.pool-panel{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px;box-shadow:0 1px 4px rgba(0,0,0,.06);margin-bottom:12px;}
+.kanban-wrap{display:flex;gap:16px;align-items:flex-start;}
+.pool-panel{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px;width:180px;flex-shrink:0;box-shadow:0 1px 4px rgba(0,0,0,.06);}
 .pool-title{font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px;}
-.pool-list{display:flex;flex-direction:row;flex-wrap:wrap;gap:6px;min-height:60px;border-radius:var(--radius-sm);padding:4px;transition:all .12s;}
+.pool-list{display:flex;flex-direction:column;gap:6px;min-height:60px;border-radius:var(--radius-sm);padding:4px;transition:all .12s;}
 .pool-list.drag-over{background:#E6F1FB;border:1.5px dashed var(--accent);}
-.kanban-parties{display:flex;flex-direction:column;gap:10px;}
+.kanban-parties{flex:1;min-width:0;display:flex;flex-direction:column;gap:10px;}
 .kanban-party{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,.05);}
 .kanban-party-header{display:flex;justify-content:space-between;align-items:center;padding:7px 12px;background:var(--surface2);border-bottom:1px solid var(--border);}
 .kanban-party-title{font-size:12px;font-weight:700;}
@@ -137,6 +145,8 @@ select{min-width:140px;cursor:pointer;}
 .kanban-del-btn:hover{color:var(--red);}
 
 @media(max-width:700px){
+  .kanban-wrap{flex-direction:column;}
+  .pool-panel{width:100%;}
   .slot-grid{grid-template-columns:repeat(2,1fr);}
 }
 
@@ -153,18 +163,12 @@ select{min-width:140px;cursor:pointer;}
 .complete-btn.undo { border-color:#F09595; background:var(--red-bg); color:var(--red); }
 .complete-btn.undo:hover { background:var(--red); color:#fff; }
 
-/* 멤버별 완료 처리 */
-.member-complete-grid{display:flex;flex-direction:column;gap:8px;margin-bottom:14px;}
-.member-complete-row{display:flex;align-items:flex-start;gap:10px;padding:8px 10px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-sm);}
-.mcr-name{font-size:12px;font-weight:700;color:var(--text);width:64px;flex-shrink:0;padding-top:6px;}
-.mcr-chars{display:flex;flex-wrap:wrap;gap:6px;flex:1;}
-.mcr-char{display:flex;align-items:center;gap:6px;padding:5px 8px;background:var(--surface2);border:1px solid var(--border2);border-radius:var(--radius-sm);}
-.mcr-char.support{background:var(--sup-bg);border-color:var(--teal-border);}
-.mcr-char-info{display:flex;flex-direction:column;gap:1px;}
-.mcr-char-cls{font-size:11px;color:var(--text2);}
-.mcr-char-bp{font-size:11px;color:var(--accent);font-weight:500;}
-.mcr-empty{font-size:11px;color:var(--text3);padding-top:6px;}
-
+.party-block.dragging-party { opacity:.4; }
+.party-block.drag-over-party { border-color:var(--accent); background:#EBF4FF; }
+.kanban-party.dragging-party { opacity:.4; }
+.kanban-party.drag-over-party { border-color:var(--accent); }
+.drag-handle { cursor:grab; color:var(--text3); padding:0 6px; font-size:16px; user-select:none; }
+.drag-handle:hover { color:var(--accent); }
 .export-box { margin-top:12px; background:var(--surface2); border:1px solid var(--border); border-radius:var(--radius-sm); padding:12px 14px; font-size:12px; color:var(--text2); line-height:1.8; white-space:pre-wrap; word-break:break-all; display:none; }
 .export-row { display:flex; gap:8px; align-items:center; margin-top:10px; }
 </style>
@@ -200,6 +204,10 @@ select{min-width:140px;cursor:pointer;}
     </div>
     <div class="section-label">참여 멤버</div>
     <div class="member-grid" id="memberGrid"></div>
+    <div class="time-section">
+      <div class="section-label">접속 가능 시간</div>
+      <div class="time-grid" id="timeGrid"></div>
+    </div>
   </div>
 
 
@@ -242,9 +250,6 @@ select{min-width:140px;cursor:pointer;}
           <button class="btn btn-primary" onclick="buildParties()">다시 추천 ↺</button>
         </div>
       </div>
-      <div class="section-label">멤버별 완료 처리 — 배치 여부와 상관없이 바로 완료할 수 있습니다</div>
-      <div class="member-complete-grid" id="memberCompleteGrid"></div>
-      <div class="divider"></div>
       <div class="parties-wrap" id="partiesWrap"></div>
       <div class="divider"></div>
       <div class="section-label">멤버별 참여 횟수</div>
@@ -270,11 +275,13 @@ select{min-width:140px;cursor:pointer;}
         <div style="font-size:10px;font-weight:700;color:var(--teal);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px;">✓ 완료 — 여기에 드래그하면 완료 처리됩니다</div>
         <div id="kanbanCompletedList" style="display:flex;flex-wrap:wrap;gap:6px;min-height:32px;"></div>
       </div>
-      <div class="pool-panel">
-        <div class="pool-title">미배치 캐릭터</div>
-        <div class="pool-list" id="poolList"></div>
+      <div class="kanban-wrap">
+        <div class="pool-panel">
+          <div class="pool-title">미배치 캐릭터</div>
+          <div class="pool-list" id="poolList"></div>
+        </div>
+        <div class="kanban-parties" id="kanbanParties"></div>
       </div>
-      <div class="kanban-parties" id="kanbanParties"></div>
     </div>
   </div>
 </div>
@@ -302,12 +309,12 @@ const BSAM=["창술사","블레","슬레","데헌","리퍼"];
 
 // 시너지 그룹 (같은 그룹 내 파티 중복 소프트 제한)
 const SYNERGY_GROUPS=[
-  ["디트","워로드","블래","딜바드","서머너","리퍼","딜도화가","환수사"],   // 방어력 감소
-  ["버서커","슬레","인파","브커","호크","소서","데모닉","소울","가나"],     // 피해 증가
-  ["기공","스카"],                                                          // 공격력 증가
-  ["배마","스커","데헌","건슬","알카","기상"],                              // 치명타 적중률 증가
-  ["딜홀나","발키리","창술사"],                                             // 치명타 공격 적중시 받는 피해 증가
-  ["워로드","고기","블레"],                                                  // 피해 증가 및 백헤드 피해 증가
+  ["디트","워로드","블래","서머너","리퍼","환수사","차원술사"],   // 방감(12%)
+  ["버서커","슬레","인파","브커","호크","소서","데모닉","소울","가나"],     // 피증(6%)
+  ["기공","스카"],                                                          // 공증(6%)
+  ["배마","스커","데헌","건슬","알카","기상"],                              // 치적(10%)
+  ["창술사"],                                                               // 치피(8%)
+  ["워로드","고기","블레"],                                                  // 백/헤드(9%)
 ];
 
 // 캐릭터의 시너지 그룹 인덱스 반환 (-1이면 해당 없음)
@@ -323,12 +330,32 @@ function hasSynergyCls(p, cls, base){
   if(g<0)return false;
   return p.slots.some(s=>s&&getSynergyGroup(s.cls,s.baseCls)===g&&s.baseCls!==b);
 }
+// 파티에 해당 멤버를 추가했을 때 시간대 격차가 큰지 (2단계 이상 차이면 미스매치로 간주, 소프트)
+function wouldMismatchTime(p, memberName){
+  const myTime=memberStartTime[memberName];
+  if(!myTime)return false;
+  const existingTimes=p.slots.filter(s=>s).map(s=>memberStartTime[s.member]).filter(Boolean);
+  if(!existingTimes.length)return false;
+  const myRank=timeRank(myTime);
+  return existingTimes.some(t=>Math.abs(timeRank(t)-myRank)>=2);
+}
 const TEAM_A_SINGLE=["민트치킨","전복치킨"];
 const TEAM_A_MULTI=["카페룽고","잼둘냥"];
 const TEAM_B_SINGLE=["남제나","포지셔닝"];
 const TEAM_B_MULTI=["아즈웬","신카"];
 
 let MEMBERS_RAW=[],MEMBER_ORDER=[],selectedMembers=new Set(),currentDiff=null;
+let memberStartTime={}; // {memberName: "9"|"10"|"11"|"later"}
+const TIME_OPTIONS=[{value:"9",label:"9시"},{value:"10",label:"10시"},{value:"11",label:"11시"},{value:"later",label:"그 이후"}];
+function timeRank(v){return {"9":0,"10":1,"11":2,"later":3}[v]??3;}
+// 두 시작시간이 같은 파티에 들어갈 수 있는지: 항상 가능(소프트) - 늦은 시간 기준으로 공통구간 존재
+function timeCompatible(a,b){return true;} // 소프트 규칙이므로 하드 차단 없음, 참고용 판단은 timeMismatchScore로
+// 파티 내 시간 미스매치 정도 (늦은 사람 기준, 차이가 클수록 나쁨)
+function timeMismatchLevel(times){
+  const ranks=times.filter(t=>t).map(timeRank);
+  if(ranks.length<2)return 0;
+  return Math.max(...ranks)-Math.min(...ranks);
+}
 let partyCounts={},allParties=[],maxCharsPerMember={};
 let dragSrc=null;
 
@@ -479,8 +506,25 @@ function renderMembers(){
     const chip=document.createElement("div");
     chip.className="member-chip"+(selectedMembers.has(m.name)?" active":"");
     chip.innerHTML=`<span class="dot"></span><span>${m.name}</span><span style="font-size:10px;opacity:.6;margin-left:2px">${el.length}캐</span>`;
-    chip.onclick=()=>{selectedMembers.has(m.name)?selectedMembers.delete(m.name):selectedMembers.add(m.name);renderMembers();if(currentDiff)loadCompletedThenBuild();};
+    chip.onclick=()=>{selectedMembers.has(m.name)?selectedMembers.delete(m.name):selectedMembers.add(m.name);renderMembers();renderTimeGrid();if(currentDiff)loadCompletedThenBuild();};
     grid.appendChild(chip);
+  });
+  renderTimeGrid();
+}
+function renderTimeGrid(){
+  const grid=document.getElementById("timeGrid");
+  if(!grid)return;
+  grid.innerHTML="";
+  MEMBERS_RAW.filter(m=>selectedMembers.has(m.name)).forEach(m=>{
+    const item=document.createElement("div");item.className="time-item";
+    const nameDiv=document.createElement("div");nameDiv.className="time-item-name";nameDiv.textContent=m.name;
+    const sel=document.createElement("select");sel.className="time-select";
+    TIME_OPTIONS.forEach(o=>{const opt=document.createElement("option");opt.value=o.value;opt.textContent=o.label;if(memberStartTime[m.name]===o.value)opt.selected=true;sel.appendChild(opt);});
+    if(!memberStartTime[m.name])memberStartTime[m.name]="9"; // 기본값
+    sel.value=memberStartTime[m.name];
+    sel.onchange=()=>{memberStartTime[m.name]=sel.value;if(currentDiff)loadCompletedThenBuild();};
+    item.appendChild(nameDiv);item.appendChild(sel);
+    grid.appendChild(item);
   });
 }
 
@@ -496,12 +540,14 @@ function pickDealer(name,p,used,priority){
   chars.sort((a,b)=>priority==="lowest"?a.bp-b.bp:b.bp-a.bp);
   // 우선순위: 1)직업중복X+시너지중복X+백사멸2이하  2)직업중복X+시너지중복X  3)직업중복X+백사멸2이하  4)직업중복X  5)백사멸3이하  6)무조건
   const bc=c=>c.baseCls||cleanCls(c.cls);
-  return chars.find(c=>!p.usedCls.has(bc(c))&&!hasSynergyCls(p,c.cls,bc(c))&&!(isBsam(c.cls,bc(c))&&p.bsamCount>=2))
-    ||chars.find(c=>!p.usedCls.has(bc(c))&&!hasSynergyCls(p,c.cls,bc(c)))
-    ||chars.find(c=>!p.usedCls.has(bc(c))&&!(isBsam(c.cls,bc(c))&&p.bsamCount>=2))
-    ||chars.find(c=>!p.usedCls.has(bc(c)))
-    ||chars.find(c=>!(isBsam(c.cls,bc(c))&&p.bsamCount>=3))
-    ||chars[0];
+  // 직업 중복은 절대 조건 - usedCls에 없는 것만
+  const noDupCls=chars.filter(c=>!p.usedCls.has(bc(c)));
+  if(!noDupCls.length)return null; // 직업 중복 없이 배치 불가 시 null
+  return noDupCls.find(c=>!hasSynergyCls(p,c.cls,bc(c))&&!wouldMismatchTime(p,name)&&!(isBsam(c.cls,bc(c))&&p.bsamCount>=2))
+    ||noDupCls.find(c=>!hasSynergyCls(p,c.cls,bc(c))&&!(isBsam(c.cls,bc(c))&&p.bsamCount>=2))
+    ||noDupCls.find(c=>!hasSynergyCls(p,c.cls,bc(c)))
+    ||noDupCls.find(c=>!(isBsam(c.cls,bc(c))&&p.bsamCount>=2))
+    ||noDupCls[0];
 }
 function tryAssignSupport(p,order,used){
   const cand=order.filter(n=>selectedMembers.has(n)&&MEMBER_ORDER.includes(n)&&!p.usedMember.has(n)&&getEligibleChars(n).some(c=>!used.has(c.uid)&&isSupport(c.cls)));
@@ -599,18 +645,26 @@ function buildFreeParties(used,mCnt){
   const hasRemain=()=>MEMBER_ORDER.some(n=>selectedMembers.has(n)&&((rDQ[n]?.length>0)||(rSQ[n]?.length>0)));
   while(hasRemain()){
     const ep=makeParty();
-    const supCand=MEMBER_ORDER.filter(n=>selectedMembers.has(n)&&!ep.usedMember.has(n)&&rSQ[n]?.length>0).sort((a,b)=>{const d=(mCnt[a]||0)-(mCnt[b]||0);return d||memberOrderIdx(a)-memberOrderIdx(b);});
+    const supCand=MEMBER_ORDER.filter(n=>selectedMembers.has(n)&&!ep.usedMember.has(n)&&rSQ[n]?.length>0).sort((a,b)=>{
+      // 카페룽고 서포터 소프트 후순위
+      const aCafe=a==="카페룽고"?1:0, bCafe=b==="카페룽고"?1:0;
+      if(aCafe!==bCafe)return aCafe-bCafe;
+      const d=(mCnt[a]||0)-(mCnt[b]||0);return d||memberOrderIdx(a)-memberOrderIdx(b);
+    });
     if(supCand.length){const name=supCand[0];const ch=rSQ[name][0];addSlot(ep,ch,used);rSQ[name].shift();mCnt[name]=(mCnt[name]||0)+1;}
     while(ep.slots.filter(s=>s).length<4){
       const cands=MEMBER_ORDER.filter(n=>selectedMembers.has(n)&&rDQ[n]?.length>0&&!ep.usedMember.has(n)).sort((a,b)=>{const d=(mCnt[a]||0)-(mCnt[b]||0);return d||memberOrderIdx(a)-memberOrderIdx(b);});
       if(!cands.length)break;
       let picked=null,pickedChar=null;
-      // 1순위: 직업중복X + 시너지중복X + 백사멸2이하
-      outer1:for(const n of cands){for(const ch of rDQ[n]){const b=ch.baseCls||cleanCls(ch.cls);if(ep.usedCls.has(b)||hasSynergyCls(ep,ch.cls,b)||(isBsam(ch.cls,b)&&ep.bsamCount>=2))continue;picked=n;pickedChar=ch;break outer1;}}
-      // 2순위: 직업중복X + 시너지중복X
+      // 1순위: 직업X+시너지X+시간매치+백사멸2이하
+      outer0:for(const n of cands){for(const ch of rDQ[n]){const b=ch.baseCls||cleanCls(ch.cls);if(ep.usedCls.has(b)||hasSynergyCls(ep,ch.cls,b)||wouldMismatchTime(ep,n)||(isBsam(ch.cls,b)&&ep.bsamCount>=2))continue;picked=n;pickedChar=ch;break outer0;}}
+      // 2순위: 직업중복X + 시너지중복X + 백사멸2이하 (시간 무시)
+      if(!picked){outer1:for(const n of cands){for(const ch of rDQ[n]){const b=ch.baseCls||cleanCls(ch.cls);if(ep.usedCls.has(b)||hasSynergyCls(ep,ch.cls,b)||(isBsam(ch.cls,b)&&ep.bsamCount>=2))continue;picked=n;pickedChar=ch;break outer1;}}}
+      // 3순위: 직업중복X + 시너지중복X
       if(!picked){outer1b:for(const n of cands){for(const ch of rDQ[n]){const b=ch.baseCls||cleanCls(ch.cls);if(ep.usedCls.has(b)||hasSynergyCls(ep,ch.cls,b))continue;picked=n;pickedChar=ch;break outer1b;}}}
-      // 3순위: 직업중복X + 백사멸2이하
+      // 4순위: 직업중복X + 백사멸2이하
       if(!picked){outer1c:for(const n of cands){for(const ch of rDQ[n]){const b=ch.baseCls||cleanCls(ch.cls);if(ep.usedCls.has(b)||(isBsam(ch.cls,b)&&ep.bsamCount>=2))continue;picked=n;pickedChar=ch;break outer1c;}}}
+      // 5순위: 직업중복X(절대)
       if(!picked){outer2:for(const n of cands){for(const ch of rDQ[n]){const b=ch.baseCls||cleanCls(ch.cls);if(ep.usedCls.has(b))continue;picked=n;pickedChar=ch;break outer2;}}}
       if(!picked){picked=cands[0];pickedChar=rDQ[picked][0];}
       if(picked&&pickedChar){addSlot(ep,pickedChar,used);rDQ[picked]=rDQ[picked].filter(c=>c.uid!==pickedChar.uid);mCnt[picked]=(mCnt[picked]||0)+1;}else break;
@@ -692,13 +746,7 @@ function getSlotOptions(pi,si){
   let pool=[];
   [...selectedMembers].forEach(name=>{getEligibleChars(name).forEach(c=>{if(otherUids.has(c.uid))return;if(sameMembers.has(c.member)&&!(cur&&c.uid===cur.uid))return;pool.push(c);});});
   if(cur)pool.push(cur);
-  return pool.filter((c,i,a)=>a.findIndex(x=>x.uid===c.uid)===i).sort((a,b)=>{
-    const mi=memberOrderIdx(a.member)-memberOrderIdx(b.member);
-    if(mi)return mi;
-    const si=isSupport(a.cls)-isSupport(b.cls);
-    if(si)return si;
-    return b.bp-a.bp;
-  });
+  return pool.filter((c,i,a)=>a.findIndex(x=>x.uid===c.uid)===i).sort((a,b)=>b.bp-a.bp);
 }
 const avgBp=slots=>{const f=slots.filter(s=>s);return f.length?Math.round(f.reduce((s,c)=>s+c.bp,0)/f.length):0;};
 function partyBadges(slots){
@@ -713,43 +761,12 @@ function partyBadges(slots){
   const synGroups={};
   slots.filter(s=>s).forEach(s=>{const b=s.baseCls||cleanCls(s.cls);const g=getSynergyGroup(s.cls,b);if(g>=0){synGroups[g]=(synGroups[g]||0)+1;}});
   if(Object.values(synGroups).some(v=>v>1))warns.push("시너지 중복");
+  // 시간대 미스매치 체크
+  const times=slots.filter(s=>s).map(s=>memberStartTime[s.member]).filter(Boolean);
+  if(timeMismatchLevel(times)>=2)warns.push("접속시간 불일치");
   return{hasSupp,warns,bsamCnt,cnt:slots.filter(s=>s).length};
 }
-function renderMemberCompleteGrid(){
-  const grid=document.getElementById("memberCompleteGrid");
-  if(!grid)return;
-  grid.innerHTML="";
-  MEMBER_ORDER.filter(n=>selectedMembers.has(n)).forEach(name=>{
-    const chars=getEligibleChars(name);
-    const row=document.createElement("div");row.className="member-complete-row";
-    const nameEl=document.createElement("div");nameEl.className="mcr-name";nameEl.textContent=name;
-    row.appendChild(nameEl);
-    const charsEl=document.createElement("div");charsEl.className="mcr-chars";
-    if(!chars.length){
-      const em=document.createElement("span");em.className="mcr-empty";em.textContent="해당 레이드 캐릭터 없음";
-      charsEl.appendChild(em);
-    } else {
-      chars.forEach(c=>{
-        const isSup=isSupport(c.cls);
-        const item=document.createElement("div");item.className="mcr-char"+(isSup?" support":"");
-        const info=document.createElement("div");info.className="mcr-char-info";
-        info.innerHTML=`<span class="mcr-char-cls">${c.cls}</span><span class="mcr-char-bp">${c.bp.toLocaleString()}</span>`;
-        const btn=document.createElement("button");btn.className="complete-btn";btn.textContent="완료";
-        btn.onclick=(e)=>{e.stopPropagation();
-          const partyIdx=allParties.findIndex(slots=>slots.some(s=>s&&s.uid===c.uid));
-          const slotIdx=partyIdx>=0?allParties[partyIdx].findIndex(s=>s&&s.uid===c.uid):undefined;
-          toggleCompleted(c,partyIdx>=0?partyIdx:undefined,slotIdx);
-        };
-        item.appendChild(info);item.appendChild(btn);
-        charsEl.appendChild(item);
-      });
-    }
-    row.appendChild(charsEl);
-    grid.appendChild(row);
-  });
-}
 function renderParties(){
-  renderMemberCompleteGrid();
   const wrap=document.getElementById("partiesWrap");wrap.innerHTML="";
   allParties.forEach((slots,pi)=>{
     const avg=avgBp(slots);const{hasSupp,warns,bsamCnt,cnt}=partyBadges(slots);
@@ -761,7 +778,7 @@ function renderParties(){
     warns.forEach(w=>{badges+=`<span class="badge badge-warn">${w}</span>`;});
     if(bsamCnt>0&&bsamCnt<=2)badges+=`<span class="badge badge-bsam">백사멸 ${bsamCnt}</span>`;
     const left=document.createElement("div");left.className="party-header-left";
-    left.innerHTML=`<span class="party-title">파티 ${pi+1}</span>${badges}`;
+    left.innerHTML=`<span class="drag-handle" title="드래그해서 순서 변경">⠿</span><span class="party-title">파티 ${pi+1}</span>${badges}`;
     const right=document.createElement("div");right.style.cssText="display:flex;align-items:center;gap:8px;";
     if(cnt>0)right.innerHTML=`<span class="party-avg">평균 전투력 ${avg.toLocaleString()}</span>`;
     const rmBtn=document.createElement("button");rmBtn.className="btn btn-sm";rmBtn.textContent="삭제";rmBtn.style.cssText="color:var(--red);border-color:#F09595;background:transparent;";rmBtn.onclick=()=>removeParty(pi);
@@ -789,11 +806,7 @@ function renderParties(){
       const opts=getSlotOptions(pi,si);
       const sel=document.createElement("select");sel.className="slot-sel";
       sel.innerHTML='<option value="">변경...</option>';
-      let curGroup=null,curGroupEl=null;
-      opts.forEach((o,oi)=>{
-        if(o.member!==curGroup){curGroup=o.member;curGroupEl=document.createElement("optgroup");curGroupEl.label=curGroup;sel.appendChild(curGroupEl);}
-        const opt=document.createElement("option");opt.value=oi;opt.textContent=`${o.cls} · ${o.bp.toLocaleString()}`;if(slot&&o.uid===slot.uid)opt.selected=true;curGroupEl.appendChild(opt);
-      });
+      opts.forEach((o,oi)=>{const opt=document.createElement("option");opt.value=oi;opt.textContent=`${o.member} · ${o.cls} · ${o.bp.toLocaleString()}`;if(slot&&o.uid===slot.uid)opt.selected=true;sel.appendChild(opt);});
       sel.onchange=()=>{
         const prev=allParties[pi][si];
         if(sel.value===""){if(prev)partyCounts[prev.member]=Math.max(0,(partyCounts[prev.member]||1)-1);allParties[pi][si]=null;}
@@ -802,7 +815,9 @@ function renderParties(){
       };
       div.appendChild(sel);slotGrid.appendChild(div);
     });
-    block.appendChild(slotGrid);wrap.appendChild(block);
+    block.appendChild(slotGrid);
+    setupPartyDrag(block, pi, 'recommend');
+    wrap.appendChild(block);
   });
 }
 function renderStats(){
@@ -910,12 +925,13 @@ function renderKanban(){
     const col=document.createElement("div");col.className="kanban-party";
     const hdr=document.createElement("div");hdr.className="kanban-party-header";
     const avg=avgBp(slots),cnt=filledCount(slots);
+    const handleSpan=document.createElement("span");handleSpan.className="drag-handle";handleSpan.title="드래그해서 순서 변경";handleSpan.textContent="⠿";
     const titleSpan=document.createElement("span");titleSpan.className="kanban-party-title";titleSpan.textContent=`파티 ${pi+1}`;
     const rightDiv=document.createElement("div");rightDiv.style.cssText="display:flex;align-items:center;gap:8px;";
     const avgSpan=document.createElement("span");avgSpan.className="kanban-party-avg";avgSpan.textContent=cnt>0?`평균 ${avg.toLocaleString()}`:"";
     const delBtn=document.createElement("button");delBtn.className="kanban-del-btn";delBtn.textContent="✕";delBtn.onclick=()=>{allParties.splice(pi,1);recalcCounts();document.getElementById("partyCountLabel").textContent=allParties.length;renderKanban();renderParties();renderStats();};
     rightDiv.appendChild(avgSpan);rightDiv.appendChild(delBtn);
-    hdr.appendChild(titleSpan);hdr.appendChild(rightDiv);col.appendChild(hdr);
+    hdr.appendChild(handleSpan);hdr.appendChild(titleSpan);hdr.appendChild(rightDiv);col.appendChild(hdr);
 
     const slotsWrap=document.createElement("div");slotsWrap.className="kanban-slots";
     slots.forEach((slot,si)=>{
@@ -954,6 +970,7 @@ function renderKanban(){
       slotsWrap.appendChild(zone);
     });
     col.appendChild(slotsWrap);
+    setupPartyDrag(col, pi, 'kanban');
     partiesEl.appendChild(col);
   });
 
@@ -1154,6 +1171,41 @@ function resetWeek() {
 }
 
 // ── 텍스트 출력 ──
+// ── 파티 블록 드래그 순서 변경 ──
+let dragPartyIdx = null;
+let dragPartyType = null; // 'recommend' | 'kanban'
+
+function setupPartyDrag(el, idx, type){
+  el.draggable = true;
+  el.addEventListener('dragstart', e=>{
+    dragPartyIdx = idx;
+    dragPartyType = type;
+    el.classList.add('dragging-party');
+    e.dataTransfer.effectAllowed = 'move';
+  });
+  el.addEventListener('dragend', ()=>el.classList.remove('dragging-party'));
+  el.addEventListener('dragover', e=>{
+    e.preventDefault();
+    if(dragPartyIdx !== null && dragPartyIdx !== idx && dragPartyType === type)
+      el.classList.add('drag-over-party');
+  });
+  el.addEventListener('dragleave', ()=>el.classList.remove('drag-over-party'));
+  el.addEventListener('drop', e=>{
+    e.preventDefault();
+    el.classList.remove('drag-over-party');
+    if(dragPartyIdx === null || dragPartyIdx === idx || dragPartyType !== type) return;
+    // 순서 교환
+    const tmp = allParties[dragPartyIdx];
+    allParties[dragPartyIdx] = allParties[idx];
+    allParties[idx] = tmp;
+    recalcCounts();
+    document.getElementById('partyCountLabel').textContent = allParties.length;
+    if(type === 'recommend'){ renderParties(); renderStats(); }
+    else { renderKanban(); renderParties(); renderStats(); }
+    dragPartyIdx = null;
+  });
+}
+
 function exportText(){
   const raidName = document.getElementById('raidSel').value;
   const diffName = document.getElementById('diffSel').value;
