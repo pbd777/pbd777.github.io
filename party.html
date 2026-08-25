@@ -402,6 +402,27 @@ function partyStartLabel(slots){
   if(r===null)return "";
   return (TIME_OPTIONS.find(o=>timeRank(o.value)===r)||{}).label||"";
 }
+// 파티를 시작 시간 이른 순으로 정렬. 빈 파티는 맨 뒤로.
+// 8인 레이드는 두 파티가 한 세트이므로 세트 단위로 옮긴다.
+function sortPartiesByStartTime(parties){
+  const keyOf=slots=>{
+    const r=partyStartRank(slots);
+    return r===null?Infinity:r; // 시간 정보가 없는(빈) 파티는 맨 뒤
+  };
+  if(!isEightManRaid()){
+    return parties
+      .map((slots,i)=>({slots,i,k:keyOf(slots)}))
+      .sort((a,b)=>a.k-b.k||a.i-b.i) // 동률이면 원래 순서 유지 (안정 정렬)
+      .map(x=>x.slots);
+  }
+  // 세트(2개)씩 묶어서 정렬 — 세트의 시작 시간은 8명 중 가장 늦은 사람 기준
+  const sets=[];
+  for(let i=0;i<parties.length;i+=2)sets.push([parties[i],parties[i+1]]);
+  return sets
+    .map((pair,i)=>({pair,i,k:keyOf([...(pair[0]||[]),...(pair[1]||[])])}))
+    .sort((a,b)=>a.k-b.k||a.i-b.i)
+    .flatMap(x=>x.pair.filter(p=>p!==undefined));
+}
 const TEAM_A_SINGLE=["민트치킨","전복치킨"];
 const TEAM_A_MULTI=["카페룽고","잼둘냥"];
 const TEAM_B_SINGLE=["남제나","포지셔닝"];
@@ -886,7 +907,7 @@ function buildParties(){
     const fixed=[p1,p2].filter(p=>filledCount(p.slots)>=3);
     allP=[...fixed,...extras];balanceParties(allP,fixed.length);
   } else {allP=buildFreeParties(used,mCnt);balanceParties(allP,0);}
-  allParties=allP.map(p=>p.slots);
+  allParties=sortPartiesByStartTime(allP.map(p=>p.slots));
   recalcCounts();
   updateRaidLabel();
   document.getElementById("partyCountLabel").textContent=allParties.length;
