@@ -724,16 +724,22 @@ function buildVelgardinParties(used, mCnt){
       const d=(mCnt[a.member]||0)-(mCnt[b.member]||0);
       return d || b.bp-a.bp;
     });
-    const suppPicked=[];
-    const suppUsedMembers=new Set();
-    for(const c of suppCand){
-      if(suppUsedMembers.has(c.member))continue;
-      // 두 번째 서포터는 첫 번째와 시간이 맞아야 함 (8인이 다 모여야 시작)
-      if(suppPicked.length&&Math.abs(timeRank(memberStartTime[c.member])
-        -timeRank(memberStartTime[suppPicked[0].member]))>TIME_TOLERANCE)continue;
-      suppPicked.push(c);suppUsedMembers.add(c.member);
-      if(suppPicked.length>=2)break;
-    }
+    // 시간이 맞는 서포터 2명을 우선 찾되, 없으면 시간을 무시하고서라도 2명을 채운다
+    // (공대가 아예 안 만들어지는 것보다 낫다 — 시간 차이는 경고 배지로 표시됨)
+    const pickTwoSupports=(requireTimeFit)=>{
+      const picked=[],members=new Set();
+      for(const c of suppCand){
+        if(members.has(c.member))continue;
+        if(requireTimeFit&&picked.length&&Math.abs(timeRank(memberStartTime[c.member])
+          -timeRank(memberStartTime[picked[0].member]))>TIME_TOLERANCE)continue;
+        picked.push(c);members.add(c.member);
+        if(picked.length>=2)break;
+      }
+      return {picked,members};
+    };
+    let sp=pickTwoSupports(true);
+    if(sp.picked.length<2)sp=pickTwoSupports(false);
+    const suppPicked=sp.picked, suppUsedMembers=sp.members;
     // 서포터 2명을 못 채우면 8인 세트 성립 불가 → 종료
     if(suppPicked.length<2)break;
 
@@ -829,13 +835,16 @@ function buildFreeParties(used,mCnt){
     });
     // 목표 시간대와 맞는지 (파티가 비어 있을 때의 판단 기준)
     const fitsTarget=n=>targetRank===null||Math.abs(timeRank(memberStartTime[n])-targetRank)<=TIME_TOLERANCE;
-    // 서포터도 목표 시간대 우선 (같은 조건이면 참여횟수 적은 순)
-    const supCand=MEMBER_ORDER.filter(n=>selectedMembers.has(n)&&!ep.usedMember.has(n)&&rSQ[n]?.length>0
-      &&!bannedAsSupport(ep,n)&&fitsTarget(n)).sort((a,b)=>{
+    // 서포터도 목표 시간대 우선. 단, 시간이 맞는 서포터가 없으면 시간을 무시하고 붙인다
+    // (서포터 없는 파티보다는 시간이 어긋난 서포터가 낫다)
+    const supPool=MEMBER_ORDER.filter(n=>selectedMembers.has(n)&&!ep.usedMember.has(n)&&rSQ[n]?.length>0
+      &&!bannedAsSupport(ep,n)).sort((a,b)=>{
       const t=timeRank(memberStartTime[a])-timeRank(memberStartTime[b]);
       if(t)return t;
       const d=(mCnt[a]||0)-(mCnt[b]||0);return d||memberOrderIdx(a)-memberOrderIdx(b);
     });
+    const supFit=supPool.filter(fitsTarget);
+    const supCand=supFit.length?supFit:supPool;
     if(supCand.length){const name=supCand[0];const ch=rSQ[name][0];addSlot(ep,ch,used);rSQ[name].shift();mCnt[name]=(mCnt[name]||0)+1;}
     while(ep.slots.filter(s=>s).length<4){
       // 금지 조합(카페룽고 서폿 + 잼둘냥 딜러) 멤버는 후보에서 제외
@@ -846,11 +855,17 @@ function buildFreeParties(used,mCnt){
         const d=(mCnt[a]||0)-(mCnt[b]||0);return d||memberOrderIdx(a)-memberOrderIdx(b);
       });
       if(!base.length)break;
-      // 시간이 맞는 후보를 우선 시도하고, 없을 때만 전체 후보로 넓힌다 (소프트 규칙)
-      // 파티가 비어 있으면 목표 시간대 기준, 채워졌으면 이미 들어간 사람 기준
-      const timeFit=base.filter(n=>!wouldMismatchTime(ep,n)&&fitsTarget(n));
+      // 시간은 선호일 뿐 — 빈 칸 없이 파티를 완성하는 게 우선이다.
+      // 좁은 후보(목표 시간대) → 넓은 후보(이미 들어간 사람 기준) → 전체 순으로 넓혀가며
+      // 어떤 단계에서든 사람을 찾으면 배치한다.
+      const strictFit=base.filter(n=>!wouldMismatchTime(ep,n)&&fitsTarget(n));
+      const looseFit=base.filter(n=>!wouldMismatchTime(ep,n));
+      const tiers=[];
+      if(strictFit.length)tiers.push(strictFit);
+      if(looseFit.length&&looseFit.length!==strictFit.length)tiers.push(looseFit);
+      tiers.push(base); // 최후: 시간 무시하고라도 채운다
       let picked=null,pickedChar=null;
-      for(const cands of (timeFit.length?[timeFit,base]:[base])){
+      for(const cands of tiers){
         // 1순위: 직업중복X + 시너지중복X + 백사멸2이하
         outer1:for(const n of cands){for(const ch of rDQ[n]){const b=ch.baseCls||cleanCls(ch.cls);if(ep.usedCls.has(b)||hasSynergyCls(ep,ch.cls,b)||(isBsam(ch.cls,b)&&ep.bsamCount>=2))continue;picked=n;pickedChar=ch;break outer1;}}
         // 2순위: 직업중복X + 시너지중복X
@@ -864,9 +879,59 @@ function buildFreeParties(used,mCnt){
       if(!picked){picked=base[0];pickedChar=rDQ[picked][0];}
       if(picked&&pickedChar){addSlot(ep,pickedChar,used);rDQ[picked]=rDQ[picked].filter(c=>c.uid!==pickedChar.uid);mCnt[picked]=(mCnt[picked]||0)+1;}else break;
     }
-    sortP(ep);if(filledCount(ep.slots)>=3)parties.push(ep);else break;
+    // 인원이 남았으면 3명 미만이라도 파티로 남긴다 (버리면 아예 배치받지 못함)
+    sortP(ep);
+    if(filledCount(ep.slots)>0)parties.push(ep);
+    else break; // 아무도 못 넣었으면 무한 루프 방지
   }
-  return parties;
+  return consolidateParties(parties);
+}
+// 미완성 파티 정리: 자투리 파티의 인원을 앞쪽 빈 칸으로 옮겨 4명 파티를 최대한 만든다.
+// 그리디 배치는 파티 수를 미리 못 정해서 3명+1명 같은 결과가 나올 수 있다.
+function consolidateParties(parties){
+  const canAccept=(p,ch)=>{
+    const f=p.slots.filter(s=>s);
+    if(f.length>=4)return false;
+    if(f.some(s=>s.member===ch.member))return false;               // 멤버 중복 금지
+    const b=ch.baseCls||cleanCls(ch.cls);
+    if(f.some(s=>(s.baseCls||cleanCls(s.cls))===b))return false;   // 직업 중복 금지
+    if(isSupport(ch.cls,ch.baseCls)&&f.some(s=>isSupport(s.cls,s.baseCls)))return false; // 서포터는 1명
+    if(bannedWithSupport(p,ch.member)||bannedAsSupport(p,ch.member))return false;
+    return true;
+  };
+  let moved=true,guard=0;
+  while(moved&&guard++<50){
+    moved=false;
+    // 인원이 가장 적은 파티부터 해체를 시도
+    const order=parties.map((p,i)=>({p,i,n:filledCount(p.slots)}))
+      .filter(x=>x.n>0&&x.n<4).sort((a,b)=>a.n-b.n);
+    for(const {p:src} of order){
+      for(let si=0;si<src.slots.length;si++){
+        const ch=src.slots[si];
+        if(!ch)continue;
+        // 빈 칸이 있는 다른 파티 중, 시간이 맞는 쪽을 우선해서 옮긴다
+        const targets=parties.filter(t=>t!==src&&filledCount(t.slots)<4&&canAccept(t,ch))
+          .sort((a,b)=>{
+            const am=wouldMismatchTime(a.slots,ch.member)?1:0;
+            const bm=wouldMismatchTime(b.slots,ch.member)?1:0;
+            if(am!==bm)return am-bm;                       // 시간 맞는 파티 우선
+            return filledCount(b.slots)-filledCount(a.slots); // 많이 찬 파티부터 채워 완성
+          });
+        if(!targets.length)continue;
+        const tgt=targets[0];
+        src.slots[si]=null;
+        const free=tgt.slots.findIndex(s=>!s);
+        if(free>=0)tgt.slots[free]=ch;else tgt.slots.push(ch);
+        tgt.usedMember.add(ch.member);
+        tgt.usedCls.add(ch.baseCls||cleanCls(ch.cls));
+        if(isBsam(ch.cls,ch.baseCls))tgt.bsamCount++;
+        moved=true;
+      }
+    }
+  }
+  // 빈 파티 제거 후 슬롯 정규화
+  return parties.filter(p=>filledCount(p.slots)>0)
+    .map(p=>{p.slots=orderSlots(p.slots);return p;});
 }
 // A/B조 고정 편성 조건: 모든 A/B조 멤버의 최고bp 캐릭터가 완료되지 않아야 함
 function isABGroupBroken(){
