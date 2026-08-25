@@ -171,6 +171,29 @@ select{min-width:140px;cursor:pointer;}
 .drag-handle:hover { color:var(--accent); }
 .export-box { margin-top:12px; background:var(--surface2); border:1px solid var(--border); border-radius:var(--radius-sm); padding:12px 14px; font-size:12px; color:var(--text2); line-height:1.8; white-space:pre-wrap; word-break:break-all; display:none; }
 .export-row { display:flex; gap:8px; align-items:center; margin-top:10px; }
+
+/* 미배치 캐릭터 표 */
+.un-table { width:100%; border-collapse:collapse; font-size:12px; margin-top:8px; }
+.un-table th { text-align:left; font-size:10px; font-weight:700; color:var(--text3); text-transform:uppercase; letter-spacing:.06em; padding:6px 10px; border-bottom:1px solid var(--border2); white-space:nowrap; }
+.un-table td { padding:6px 10px; border-bottom:1px solid var(--border); }
+.un-table tr:last-child td { border-bottom:none; }
+.un-table .un-bp { color:var(--accent); font-weight:500; text-align:right; white-space:nowrap; }
+.un-table .un-ilvl { color:var(--text2); text-align:right; white-space:nowrap; }
+.un-table .un-member { font-weight:700; white-space:nowrap; }
+.un-table tr.un-sup td { background:var(--sup-bg); }
+.un-role { font-size:10px; font-weight:700; padding:1px 6px; border-radius:3px; white-space:nowrap; }
+.un-role.sup { color:var(--teal); background:var(--teal-bg); border:1px solid var(--teal-border); }
+.un-role.deal { color:var(--text2); background:var(--surface2); border:1px solid var(--border); }
+.un-empty { font-size:12px; color:var(--text3); padding:8px 0; }
+.un-scroll { overflow-x:auto; }
+
+/* 8인 레이드 세트(공대) 구분 */
+.set-head { display:flex; align-items:center; gap:8px; margin:6px 0 2px; }
+.set-head:first-child { margin-top:0; }
+.set-head-line { flex:1; border-top:1px solid var(--border); }
+.set-head-name { font-size:10px; font-weight:700; color:var(--text3); text-transform:uppercase; letter-spacing:.08em; white-space:nowrap; }
+.set-head-warn { font-size:10px; font-weight:700; color:var(--amber); background:var(--amber-bg); border:1px solid #FAC775; border-radius:4px; padding:1px 6px; white-space:nowrap; }
+.set-head-ok { font-size:10px; font-weight:700; color:var(--teal); background:var(--teal-bg); border:1px solid var(--teal-border); border-radius:4px; padding:1px 6px; white-space:nowrap; }
 </style>
 </head>
 <body>
@@ -254,8 +277,12 @@ select{min-width:140px;cursor:pointer;}
       <div class="divider"></div>
       <div class="section-label">멤버별 참여 횟수</div>
       <div class="stat-grid" id="statGrid"></div>
+      <div class="divider"></div>
+      <div class="section-label">미배치 캐릭터 <span id="unassignedCount" style="text-transform:none;color:var(--text2);"></span></div>
+      <div id="unassignedWrap"></div>
       <div class="export-row">
         <button class="btn" onclick="exportText()">텍스트로 출력</button>
+        <button class="btn" onclick="exportReport()">상세 리포트</button>
         <button class="btn btn-sm" id="copyBtn" onclick="copyExport()" style="display:none;">복사</button>
       </div>
       <div class="export-box" id="exportBox"></div>
@@ -299,57 +326,122 @@ const RAIDS={
     {label:"노말",minIlvl:1710,topTier:false,sheetKey:"세르카",sheetVal:"노말"}
   ],
   "벨가르딘":[
-    {label:"나이트메어",minIlvl:1780,topTier:true,sheetKey:"벨가르딘",sheetVal:"나이트메어"},
-    {label:"하드",minIlvl:1770,topTier:false,sheetKey:"벨가르딘",sheetVal:"하드"},
-    {label:"노말",minIlvl:1750,topTier:false,sheetKey:"벨가르딘",sheetVal:"노말"}
+    {label:"나이트메어",minIlvl:1780,topTier:true,sheetKey:"벨가르딘",sheetVal:"나이트메어",partySize:8},
+    {label:"하드",minIlvl:1770,topTier:false,sheetKey:"벨가르딘",sheetVal:"하드",partySize:8},
+    {label:"노말",minIlvl:1750,topTier:false,sheetKey:"벨가르딘",sheetVal:"노말",partySize:8}
   ]
 };
+// 8인 레이드 = 4인 파티 2개가 한 세트(공대)로 동시 입장
+const isEightManRaid=()=>currentDiff?.partySize===8;
+// 세트 인덱스는 파티 순서에서 파생 (파티 2k, 2k+1이 한 세트) → 삭제/순서변경에도 자동 유지
+const setIdxOf=pi=>Math.floor(pi/2);
+const setLabelOf=pi=>`${setIdxOf(pi)+1}공대 · 파티 ${pi%2+1}`;
+// 해당 파티가 속한 세트가 8인을 채웠는지
+function setIsComplete(pi){
+  const base=setIdxOf(pi)*2;
+  const a=allParties[base],b=allParties[base+1];
+  if(!a||!b)return false;
+  return filledCount(a)===4&&filledCount(b)===4;
+}
 const SUPPORTS=["바드","홀나","도화가","발키리"];
 const BSAM=["창술사","블레","슬레","데헌","리퍼"];
 
 // 시너지 그룹 (같은 그룹 내 파티 중복 소프트 제한)
+// 워로드처럼 두 그룹에 동시에 속하는 직업이 있으므로 항상 전체 소속을 확인한다
 const SYNERGY_GROUPS=[
-  ["디트","워로드","블래","서머너","리퍼","환수사","차원술사"],   // 방감(12%)
-  ["버서커","슬레","인파","브커","호크","소서","데모닉","소울","가나"],     // 피증(6%)
-  ["기공","스카"],                                                          // 공증(6%)
-  ["배마","스커","데헌","건슬","알카","기상"],                              // 치적(10%)
-  ["창술사"],                                                               // 치피(8%)
-  ["워로드","고기","블레"],                                                  // 백/헤드(9%)
+  {name:"방감12%",cls:["디트","워로드","블래","서머너","리퍼","환수사","차원술사"]},
+  {name:"피증6%", cls:["버서커","슬레","인파","브커","호크","소서","데모닉","소울","가나"]},
+  {name:"공증6%", cls:["기공","스카"]},
+  {name:"치적10%",cls:["배마","스커","데헌","건슬","알카","기상"]},
+  {name:"치피8%", cls:["창술사","발키리"]},
+  {name:"백헤드9%",cls:["워로드","고기","블레"]},
 ];
 
-// 캐릭터의 시너지 그룹 인덱스 반환 (-1이면 해당 없음)
-function getSynergyGroup(cls,base){
+// 캐릭터가 속한 시너지 그룹 인덱스 배열 (복수 소속 가능, 없으면 빈 배열)
+function getSynergyGroups(cls,base){
   const b=base||cleanCls(cls);
-  return SYNERGY_GROUPS.findIndex(g=>g.includes(b));
+  const out=[];
+  SYNERGY_GROUPS.forEach((g,i)=>{if(g.cls.includes(b))out.push(i);});
+  return out;
+}
+// 하위 호환: 대표 그룹 하나만 필요한 곳
+function getSynergyGroup(cls,base){
+  const g=getSynergyGroups(cls,base);
+  return g.length?g[0]:-1;
 }
 
-// 파티에 같은 시너지 그룹 캐릭터가 있는지 체크
+// 파티에 같은 시너지 그룹 캐릭터가 있는지 체크 (복수 소속 직업은 하나라도 겹치면 중복)
 function hasSynergyCls(p, cls, base){
   const b=base||cleanCls(cls);
-  const g=getSynergyGroup(cls,b);
-  if(g<0)return false;
-  return p.slots.some(s=>s&&getSynergyGroup(s.cls,s.baseCls)===g&&s.baseCls!==b);
+  const mine=getSynergyGroups(cls,b);
+  if(!mine.length)return false;
+  return p.slots.some(s=>{
+    if(!s||s.baseCls===b)return false;
+    return getSynergyGroups(s.cls,s.baseCls).some(g=>mine.includes(g));
+  });
 }
-// 파티에 해당 멤버를 추가했을 때 시간대 격차가 큰지 (2단계 이상 차이면 미스매치로 간주, 소프트)
+// 접속 시간 허용 폭: 1단계(1시간) 차이까지는 같은 파티 허용, 2단계 이상이면 미스매치
+const TIME_TOLERANCE=1;
+// 파티에 해당 멤버를 추가했을 때 시간대 격차가 허용 폭을 넘는지
 function wouldMismatchTime(p, memberName){
   const myTime=memberStartTime[memberName];
   if(!myTime)return false;
-  const existingTimes=p.slots.filter(s=>s).map(s=>memberStartTime[s.member]).filter(Boolean);
+  const slots=p.slots||p; // party 객체 / 슬롯 배열 모두 허용
+  const existingTimes=slots.filter(s=>s).map(s=>memberStartTime[s.member]).filter(Boolean);
   if(!existingTimes.length)return false;
   const myRank=timeRank(myTime);
-  return existingTimes.some(t=>Math.abs(timeRank(t)-myRank)>=2);
+  return existingTimes.some(t=>Math.abs(timeRank(t)-myRank)>TIME_TOLERANCE);
+}
+// 파티의 대표 시작 시간 = 가장 늦은 사람 기준 (다 모여야 시작하므로)
+function partyStartRank(slots){
+  const ranks=slots.filter(s=>s).map(s=>memberStartTime[s.member]).filter(Boolean).map(timeRank);
+  return ranks.length?Math.max(...ranks):null;
+}
+function partyStartLabel(slots){
+  const r=partyStartRank(slots);
+  if(r===null)return "";
+  return (TIME_OPTIONS.find(o=>timeRank(o.value)===r)||{}).label||"";
 }
 const TEAM_A_SINGLE=["민트치킨","전복치킨"];
 const TEAM_A_MULTI=["카페룽고","잼둘냥"];
 const TEAM_B_SINGLE=["남제나","포지셔닝"];
 const TEAM_B_MULTI=["아즈웬","신카"];
 
+// 궁합 제한: [서포터 멤버, 딜러 멤버] — 해당 서포터가 있는 파티에 해당 멤버의 딜러를 붙이지 않는다
+const SUP_DEALER_BANS=[["카페룽고","잼둘냥"]];
+// 이 파티에 name 멤버의 딜러를 넣으면 금지 조합이 되는지
+function bannedWithSupport(p,name){
+  return SUP_DEALER_BANS.some(([sup,deal])=>
+    deal===name && p.slots.some(s=>s&&s.member===sup&&isSupport(s.cls,s.baseCls)));
+}
+// 이 파티에 name 멤버의 서포터를 넣으면 금지 조합이 되는지
+function bannedAsSupport(p,name){
+  return SUP_DEALER_BANS.some(([sup,deal])=>
+    sup===name && p.slots.some(s=>s&&s.member===deal&&!isSupport(s.cls,s.baseCls)));
+}
+// 완성된 슬롯 배열에 금지 조합이 있는지 (경고 배지용)
+function bannedPairsIn(slots){
+  const f=slots.filter(s=>s);
+  return SUP_DEALER_BANS.filter(([sup,deal])=>
+    f.some(s=>s.member===sup&&isSupport(s.cls,s.baseCls)) &&
+    f.some(s=>s.member===deal&&!isSupport(s.cls,s.baseCls)));
+}
+
 let MEMBERS_RAW=[],MEMBER_ORDER=[],selectedMembers=new Set(),currentDiff=null;
 let memberStartTime={}; // {memberName: "9"|"10"|"11"|"later"}
 const TIME_OPTIONS=[{value:"9",label:"9시"},{value:"10",label:"10시"},{value:"11",label:"11시"},{value:"later",label:"그 이후"}];
+// 접속 시간 설정은 브라우저에 저장해 새로고침해도 유지한다
+const TIME_STORE_KEY="lostark_party_startTimes";
+function saveStartTimes(){
+  try{localStorage.setItem(TIME_STORE_KEY,JSON.stringify(memberStartTime));}catch(e){}
+}
+function loadStartTimes(){
+  try{
+    const raw=localStorage.getItem(TIME_STORE_KEY);
+    if(raw)memberStartTime=Object.assign({},JSON.parse(raw),memberStartTime);
+  }catch(e){}
+}
 function timeRank(v){return {"9":0,"10":1,"11":2,"later":3}[v]??3;}
-// 두 시작시간이 같은 파티에 들어갈 수 있는지: 항상 가능(소프트) - 늦은 시간 기준으로 공통구간 존재
-function timeCompatible(a,b){return true;} // 소프트 규칙이므로 하드 차단 없음, 참고용 판단은 timeMismatchScore로
 // 파티 내 시간 미스매치 정도 (늦은 사람 기준, 차이가 클수록 나쁨)
 function timeMismatchLevel(times){
   const ranks=times.filter(t=>t).map(timeRank);
@@ -401,6 +493,7 @@ function loadSheet(){
       if(!MEMBERS_RAW.length)throw new Error("캐릭터 데이터를 찾을 수 없습니다.");
       MEMBER_ORDER=MEMBERS_RAW.map(m=>m.name);
       selectedMembers=new Set(MEMBER_ORDER);
+      loadStartTimes(); // 이전에 설정한 접속 시간 복원
       const total=MEMBERS_RAW.reduce((s,m)=>s+m.chars.length,0);
       showStatus(`✓ ${MEMBERS_RAW.length}명 / 캐릭터 ${total}개 불러오기 완료`,"ok");
       document.getElementById("raidCard").style.display="block";
@@ -522,7 +615,7 @@ function renderTimeGrid(){
     TIME_OPTIONS.forEach(o=>{const opt=document.createElement("option");opt.value=o.value;opt.textContent=o.label;if(memberStartTime[m.name]===o.value)opt.selected=true;sel.appendChild(opt);});
     if(!memberStartTime[m.name])memberStartTime[m.name]="9"; // 기본값
     sel.value=memberStartTime[m.name];
-    sel.onchange=()=>{memberStartTime[m.name]=sel.value;if(currentDiff)loadCompletedThenBuild();};
+    sel.onchange=()=>{memberStartTime[m.name]=sel.value;saveStartTimes();if(currentDiff)loadCompletedThenBuild();};
     item.appendChild(nameDiv);item.appendChild(sel);
     grid.appendChild(item);
   });
@@ -531,10 +624,28 @@ function renderTimeGrid(){
 // ── 자동 추천 ──
 const makeParty=()=>({slots:[],usedMember:new Set(),usedCls:new Set(),bsamCount:0});
 function addSlot(p,ch,used){p.slots.push(ch);p.usedMember.add(ch.member);p.usedCls.add(ch.baseCls||cleanCls(ch.cls));if(isBsam(ch.cls,ch.baseCls))p.bsamCount++;used.add(ch.uid);}
-function sortP(p){p.slots.sort((a,b)=>memberOrderIdx(a.member)-memberOrderIdx(b.member));while(p.slots.length<4)p.slots.push(null);}
+// 딜러 먼저, 서포터는 항상 파티의 마지막 자리 (딜러1, 딜러2, 딜러3, 서포터)
+function sortP(p){
+  p.slots.sort((a,b)=>{
+    const sa=isSupport(a.cls,a.baseCls)?1:0, sb=isSupport(b.cls,b.baseCls)?1:0;
+    return sa-sb || memberOrderIdx(a.member)-memberOrderIdx(b.member);
+  });
+  while(p.slots.length<4)p.slots.push(null);
+}
+// 슬롯 배열을 딜러→서포터 순으로 재정렬 (빈 슬롯은 딜러 자리에 남김)
+function orderSlots(slots){
+  const filled=slots.filter(s=>s);
+  const dealers=filled.filter(s=>!isSupport(s.cls,s.baseCls));
+  const supports=filled.filter(s=>isSupport(s.cls,s.baseCls));
+  const out=[...dealers];
+  while(out.length<4-supports.length)out.push(null);
+  return [...out,...supports].slice(0,Math.max(4,filled.length));
+}
 const partyAvgBp=slots=>{const f=slots.filter(s=>s);return f.length?f.reduce((s,c)=>s+c.bp,0)/f.length:0;};
 const filledCount=slots=>slots.filter(s=>s).length;
 function pickDealer(name,p,used,priority){
+  // 금지 조합(카페룽고 서폿 + 잼둘냥 딜러)이면 배치하지 않음
+  if(bannedWithSupport(p,name))return null;
   let chars=getEligibleChars(name).filter(c=>!used.has(c.uid)&&!isSupport(c.cls));
   if(!chars.length)return null;
   chars.sort((a,b)=>priority==="lowest"?a.bp-b.bp:b.bp-a.bp);
@@ -543,14 +654,16 @@ function pickDealer(name,p,used,priority){
   // 직업 중복은 절대 조건 - usedCls에 없는 것만
   const noDupCls=chars.filter(c=>!p.usedCls.has(bc(c)));
   if(!noDupCls.length)return null; // 직업 중복 없이 배치 불가 시 null
-  return noDupCls.find(c=>!hasSynergyCls(p,c.cls,bc(c))&&!wouldMismatchTime(p,name)&&!(isBsam(c.cls,bc(c))&&p.bsamCount>=2))
-    ||noDupCls.find(c=>!hasSynergyCls(p,c.cls,bc(c))&&!(isBsam(c.cls,bc(c))&&p.bsamCount>=2))
+  // 시간은 멤버 단위 판단이라 캐릭터 선택에 영향을 주지 않는다.
+  // A/B조는 명단이 고정이므로 시간이 안 맞아도 배치는 하되 경고 배지로 표시된다.
+  return noDupCls.find(c=>!hasSynergyCls(p,c.cls,bc(c))&&!(isBsam(c.cls,bc(c))&&p.bsamCount>=2))
     ||noDupCls.find(c=>!hasSynergyCls(p,c.cls,bc(c)))
     ||noDupCls.find(c=>!(isBsam(c.cls,bc(c))&&p.bsamCount>=2))
     ||noDupCls[0];
 }
 function tryAssignSupport(p,order,used){
-  const cand=order.filter(n=>selectedMembers.has(n)&&MEMBER_ORDER.includes(n)&&!p.usedMember.has(n)&&getEligibleChars(n).some(c=>!used.has(c.uid)&&isSupport(c.cls)));
+  const cand=order.filter(n=>selectedMembers.has(n)&&MEMBER_ORDER.includes(n)&&!p.usedMember.has(n)
+    &&!bannedAsSupport(p,n)&&getEligibleChars(n).some(c=>!used.has(c.uid)&&isSupport(c.cls)));
   if(!cand.length)return false;
   const name=cand[0];
   const ch=getEligibleChars(name).filter(c=>!used.has(c.uid)&&isSupport(c.cls)).sort((a,b)=>b.bp-a.bp)[0];
@@ -568,72 +681,108 @@ function balanceParties(parties,freeFrom){
     if(best&&bestGain>0){hp.slots[best.hsi]=best.ls;lp.slots[best.lsi]=best.hs;improved=true;}
   }
 }
-// 벨가르딘 8인 전용: 서포터 2명 + 딜러 6명 → 2파티(각 서포터1+딜러3)
+// 벨가르딘 8인 전용: 한 세트 = 4인 파티 2개(각 서포터1+딜러3)가 동시 입장
+// 인원이 남으면 8인 세트를 반복 생성한다. 서포터 2명을 못 채우면 세트를 만들지 않는다.
 function buildVelgardinParties(used, mCnt){
   const rDQ={}, rSQ={};
-  MEMBER_ORDER.filter(n=>selectedMembers.has(n)).forEach(n=>{
+  const activeMembers=()=>MEMBER_ORDER.filter(n=>selectedMembers.has(n));
+  activeMembers().forEach(n=>{
     rDQ[n]=getEligibleChars(n).filter(c=>!used.has(c.uid)&&!isSupport(c.cls,c.baseCls)).sort((a,b)=>a.bp-b.bp);
     rSQ[n]=getEligibleChars(n).filter(c=>!used.has(c.uid)&&isSupport(c.cls,c.baseCls)).sort((a,b)=>b.bp-a.bp);
   });
 
-  // 서포터 2명 먼저 선발 (전투력 기준 상위 2명)
-  const allSupp=[];
-  MEMBER_ORDER.filter(n=>selectedMembers.has(n)).forEach(n=>{
-    rSQ[n].forEach(c=>allSupp.push(c));
-  });
-  allSupp.sort((a,b)=>b.bp-a.bp);
-  const suppPicked=[];
-  const suppUsedMembers=new Set();
-  for(const c of allSupp){
-    if(suppUsedMembers.has(c.member))continue;
-    suppPicked.push(c);suppUsedMembers.add(c.member);used.add(c.uid);
-    mCnt[c.member]=(mCnt[c.member]||0)+1;
-    if(suppPicked.length>=2)break;
+  const result=[];
+  // 세트 단위로 반복: 서포터 2명 + 딜러 6명이 남아 있는 동안 계속 생성
+  while(true){
+    // ── 서포터 2명 선발 (이른 시간부터, 같으면 참여횟수 적은 멤버 → 전투력 높은 쪽) ──
+    const suppCand=[];
+    activeMembers().forEach(n=>{ rSQ[n].filter(c=>!used.has(c.uid)).forEach(c=>suppCand.push(c)); });
+    suppCand.sort((a,b)=>{
+      const t=timeRank(memberStartTime[a.member])-timeRank(memberStartTime[b.member]);
+      if(t)return t;
+      const d=(mCnt[a.member]||0)-(mCnt[b.member]||0);
+      return d || b.bp-a.bp;
+    });
+    const suppPicked=[];
+    const suppUsedMembers=new Set();
+    for(const c of suppCand){
+      if(suppUsedMembers.has(c.member))continue;
+      // 두 번째 서포터는 첫 번째와 시간이 맞아야 함 (8인이 다 모여야 시작)
+      if(suppPicked.length&&Math.abs(timeRank(memberStartTime[c.member])
+        -timeRank(memberStartTime[suppPicked[0].member]))>TIME_TOLERANCE)continue;
+      suppPicked.push(c);suppUsedMembers.add(c.member);
+      if(suppPicked.length>=2)break;
+    }
+    // 서포터 2명을 못 채우면 8인 세트 성립 불가 → 종료
+    if(suppPicked.length<2)break;
+
+    // ── 딜러 6명이 남아 있는지 확인 (서포터 2명의 멤버는 딜러로 중복 참여 불가) ──
+    const remainDealers=activeMembers().filter(n=>!suppUsedMembers.has(n))
+      .reduce((s,n)=>s+rDQ[n].filter(c=>!used.has(c.uid)).length,0);
+    if(remainDealers<6)break;
+
+    // ── 세트 구성 ──
+    const p1=makeParty(), p2=makeParty();
+    suppPicked.forEach((c,i)=>{
+      const p=i===0?p1:p2;
+      addSlot(p,c,used);
+      rSQ[c.member]=rSQ[c.member].filter(x=>x.uid!==c.uid);
+      mCnt[c.member]=(mCnt[c.member]||0)+1;
+    });
+
+    // 딜러를 각 파티에 3명씩 배분 (시너지/직업 중복 소프트 제한)
+    // 같은 세트의 두 파티는 동시 입장하므로, 멤버 중복은 세트 전체에서 금지한다.
+    const setMembers=new Set([...p1.usedMember,...p2.usedMember]);
+    const fillDealers=(party)=>{
+      while(party.slots.filter(s=>s).length<4){
+        // 금지 조합(카페룽고 서폿 + 잼둘냥 딜러) 멤버는 후보에서 제외
+        const base=activeMembers().filter(n=>rDQ[n]&&rDQ[n].some(c=>!used.has(c.uid))&&!setMembers.has(n)
+          &&!bannedWithSupport(party,n))
+          .sort((a,b)=>{
+            const t=timeRank(memberStartTime[a])-timeRank(memberStartTime[b]);
+            if(t)return t;
+            const d=(mCnt[a]||0)-(mCnt[b]||0);return d||memberOrderIdx(a)-memberOrderIdx(b);
+          });
+        if(!base.length)break;
+        // 8인이 다 모여야 시작하므로 시간 검사는 세트 전체(두 파티) 기준
+        const setSlots=[...p1.slots,...p2.slots];
+        const timeFit=base.filter(n=>!wouldMismatchTime(setSlots,n));
+        let picked=null,pickedChar=null;
+        const bc=c=>c.baseCls||cleanCls(c.cls);
+        for(const cands of (timeFit.length?[timeFit,base]:[base])){
+        // 1순위: 직업중복X+시너지중복X+백사멸2이하
+        outer1:for(const n of cands){for(const ch of rDQ[n]){if(used.has(ch.uid))continue;if(party.usedCls.has(bc(ch))||hasSynergyCls(party,ch.cls,bc(ch))||(isBsam(ch.cls,bc(ch))&&party.bsamCount>=2))continue;picked=n;pickedChar=ch;break outer1;}}
+        // 2순위: 직업중복X+시너지중복X
+        if(!picked){outer2:for(const n of cands){for(const ch of rDQ[n]){if(used.has(ch.uid))continue;if(party.usedCls.has(bc(ch))||hasSynergyCls(party,ch.cls,bc(ch)))continue;picked=n;pickedChar=ch;break outer2;}}}
+        // 3순위: 직업중복X
+        if(!picked){outer3:for(const n of cands){for(const ch of rDQ[n]){if(used.has(ch.uid))continue;if(party.usedCls.has(bc(ch)))continue;picked=n;pickedChar=ch;break outer3;}}}
+        // 4순위: 무조건
+        if(!picked){for(const n of cands){const ch=rDQ[n].find(c=>!used.has(c.uid));if(ch){picked=n;pickedChar=ch;break;}}}
+        if(picked)break; // 시간 맞는 후보에서 찾았으면 전체 후보로 넓히지 않는다
+        }
+        if(picked&&pickedChar){
+          addSlot(party,pickedChar,used);
+          setMembers.add(picked);
+          rDQ[picked]=rDQ[picked].filter(c=>c.uid!==pickedChar.uid);
+          mCnt[picked]=(mCnt[picked]||0)+1;
+        } else break;
+      }
+    };
+    fillDealers(p1);fillDealers(p2);
+    sortP(p1);sortP(p2);
+
+    // 8인이 모두 차지 않으면 세트 성립 불가 → 되돌리고 종료
+    if(filledCount(p1.slots)<4||filledCount(p2.slots)<4){
+      [...p1.slots,...p2.slots].filter(s=>s).forEach(s=>{
+        used.delete(s.uid);
+        mCnt[s.member]=Math.max(0,(mCnt[s.member]||1)-1);
+      });
+      break;
+    }
+
+    result.push(p1,p2);
   }
 
-  // 딜러 6명 선발 (참여횟수 균등 + 시너지/직업 중복 고려)
-  const allDeal=[];
-  MEMBER_ORDER.filter(n=>selectedMembers.has(n)).forEach(n=>{
-    rDQ[n].filter(c=>!used.has(c.uid)).forEach(c=>allDeal.push(c));
-  });
-
-  // 2파티 구성
-  const p1=makeParty(), p2=makeParty();
-
-  // 서포터 각 파티에 배분
-  if(suppPicked[0])addSlot(p1,suppPicked[0],used);
-  if(suppPicked[1])addSlot(p2,suppPicked[1],used);
-
-  // 딜러를 각 파티에 3명씩 배분 (시너지/직업 중복 소프트 제한)
-  const fillDealers=(party)=>{
-    while(party.slots.filter(s=>s).length<4){
-      const cands=MEMBER_ORDER.filter(n=>selectedMembers.has(n)&&rDQ[n]&&rDQ[n].length>0&&!party.usedMember.has(n))
-        .sort((a,b)=>{const d=(mCnt[a]||0)-(mCnt[b]||0);return d||memberOrderIdx(a)-memberOrderIdx(b);});
-      if(!cands.length)break;
-      let picked=null,pickedChar=null;
-      const bc=c=>c.baseCls||cleanCls(c.cls);
-      // 1순위: 직업중복X+시너지중복X+백사멸2이하
-      outer1:for(const n of cands){for(const ch of rDQ[n]){if(used.has(ch.uid))continue;if(party.usedCls.has(bc(ch))||hasSynergyCls(party,ch.cls,bc(ch))||(isBsam(ch.cls,bc(ch))&&party.bsamCount>=2))continue;picked=n;pickedChar=ch;break outer1;}}
-      // 2순위: 직업중복X+시너지중복X
-      if(!picked){outer2:for(const n of cands){for(const ch of rDQ[n]){if(used.has(ch.uid))continue;if(party.usedCls.has(bc(ch))||hasSynergyCls(party,ch.cls,bc(ch)))continue;picked=n;pickedChar=ch;break outer2;}}}
-      // 3순위: 직업중복X
-      if(!picked){outer3:for(const n of cands){for(const ch of rDQ[n]){if(used.has(ch.uid))continue;if(party.usedCls.has(bc(ch)))continue;picked=n;pickedChar=ch;break outer3;}}}
-      // 4순위: 무조건
-      if(!picked){for(const n of cands){const ch=rDQ[n].find(c=>!used.has(c.uid));if(ch){picked=n;pickedChar=ch;break;}}}
-      if(picked&&pickedChar){
-        addSlot(party,pickedChar,used);
-        rDQ[picked]=rDQ[picked].filter(c=>c.uid!==pickedChar.uid);
-        mCnt[picked]=(mCnt[picked]||0)+1;
-      } else break;
-    }
-  };
-
-  fillDealers(p1);fillDealers(p2);
-  sortP(p1);sortP(p2);
-
-  const result=[];
-  if(filledCount(p1.slots)>=2)result.push(p1);
-  if(filledCount(p2.slots)>=2)result.push(p2);
   balanceParties(result,0);
   return result;
 }
@@ -645,28 +794,53 @@ function buildFreeParties(used,mCnt){
   const hasRemain=()=>MEMBER_ORDER.some(n=>selectedMembers.has(n)&&((rDQ[n]?.length>0)||(rSQ[n]?.length>0)));
   while(hasRemain()){
     const ep=makeParty();
-    const supCand=MEMBER_ORDER.filter(n=>selectedMembers.has(n)&&!ep.usedMember.has(n)&&rSQ[n]?.length>0).sort((a,b)=>{
-      // 카페룽고 서포터 소프트 후순위
-      const aCafe=a==="카페룽고"?1:0, bCafe=b==="카페룽고"?1:0;
-      if(aCafe!==bCafe)return aCafe-bCafe;
+    // 이 파티가 노릴 시간대를 먼저 정한다.
+    // 남은 인원이 가장 많은 시간대부터 채워야, 마지막에 자투리끼리 섞이는 일이 줄어든다.
+    const remainByRank={};
+    MEMBER_ORDER.filter(n=>selectedMembers.has(n)&&((rDQ[n]?.length>0)||(rSQ[n]?.length>0)))
+      .forEach(n=>{const r=timeRank(memberStartTime[n]);remainByRank[r]=(remainByRank[r]||0)+1;});
+    // 허용 폭(±TIME_TOLERANCE)을 합쳐 셌을 때 인원이 가장 많은 시간대, 동률이면 이른 시간
+    let targetRank=null,bestCnt=-1;
+    Object.keys(remainByRank).map(Number).sort((a,b)=>a-b).forEach(r=>{
+      let c=0;
+      Object.entries(remainByRank).forEach(([rr,v])=>{if(Math.abs(Number(rr)-r)<=TIME_TOLERANCE)c+=v;});
+      if(c>bestCnt){bestCnt=c;targetRank=r;}
+    });
+    // 목표 시간대와 맞는지 (파티가 비어 있을 때의 판단 기준)
+    const fitsTarget=n=>targetRank===null||Math.abs(timeRank(memberStartTime[n])-targetRank)<=TIME_TOLERANCE;
+    // 서포터도 목표 시간대 우선 (같은 조건이면 참여횟수 적은 순)
+    const supCand=MEMBER_ORDER.filter(n=>selectedMembers.has(n)&&!ep.usedMember.has(n)&&rSQ[n]?.length>0
+      &&!bannedAsSupport(ep,n)&&fitsTarget(n)).sort((a,b)=>{
+      const t=timeRank(memberStartTime[a])-timeRank(memberStartTime[b]);
+      if(t)return t;
       const d=(mCnt[a]||0)-(mCnt[b]||0);return d||memberOrderIdx(a)-memberOrderIdx(b);
     });
     if(supCand.length){const name=supCand[0];const ch=rSQ[name][0];addSlot(ep,ch,used);rSQ[name].shift();mCnt[name]=(mCnt[name]||0)+1;}
     while(ep.slots.filter(s=>s).length<4){
-      const cands=MEMBER_ORDER.filter(n=>selectedMembers.has(n)&&rDQ[n]?.length>0&&!ep.usedMember.has(n)).sort((a,b)=>{const d=(mCnt[a]||0)-(mCnt[b]||0);return d||memberOrderIdx(a)-memberOrderIdx(b);});
-      if(!cands.length)break;
+      // 금지 조합(카페룽고 서폿 + 잼둘냥 딜러) 멤버는 후보에서 제외
+      const base=MEMBER_ORDER.filter(n=>selectedMembers.has(n)&&rDQ[n]?.length>0&&!ep.usedMember.has(n)
+        &&!bannedWithSupport(ep,n)).sort((a,b)=>{
+        const t=timeRank(memberStartTime[a])-timeRank(memberStartTime[b]);
+        if(t)return t;
+        const d=(mCnt[a]||0)-(mCnt[b]||0);return d||memberOrderIdx(a)-memberOrderIdx(b);
+      });
+      if(!base.length)break;
+      // 시간이 맞는 후보를 우선 시도하고, 없을 때만 전체 후보로 넓힌다 (소프트 규칙)
+      // 파티가 비어 있으면 목표 시간대 기준, 채워졌으면 이미 들어간 사람 기준
+      const timeFit=base.filter(n=>!wouldMismatchTime(ep,n)&&fitsTarget(n));
       let picked=null,pickedChar=null;
-      // 1순위: 직업X+시너지X+시간매치+백사멸2이하
-      outer0:for(const n of cands){for(const ch of rDQ[n]){const b=ch.baseCls||cleanCls(ch.cls);if(ep.usedCls.has(b)||hasSynergyCls(ep,ch.cls,b)||wouldMismatchTime(ep,n)||(isBsam(ch.cls,b)&&ep.bsamCount>=2))continue;picked=n;pickedChar=ch;break outer0;}}
-      // 2순위: 직업중복X + 시너지중복X + 백사멸2이하 (시간 무시)
-      if(!picked){outer1:for(const n of cands){for(const ch of rDQ[n]){const b=ch.baseCls||cleanCls(ch.cls);if(ep.usedCls.has(b)||hasSynergyCls(ep,ch.cls,b)||(isBsam(ch.cls,b)&&ep.bsamCount>=2))continue;picked=n;pickedChar=ch;break outer1;}}}
-      // 3순위: 직업중복X + 시너지중복X
-      if(!picked){outer1b:for(const n of cands){for(const ch of rDQ[n]){const b=ch.baseCls||cleanCls(ch.cls);if(ep.usedCls.has(b)||hasSynergyCls(ep,ch.cls,b))continue;picked=n;pickedChar=ch;break outer1b;}}}
-      // 4순위: 직업중복X + 백사멸2이하
-      if(!picked){outer1c:for(const n of cands){for(const ch of rDQ[n]){const b=ch.baseCls||cleanCls(ch.cls);if(ep.usedCls.has(b)||(isBsam(ch.cls,b)&&ep.bsamCount>=2))continue;picked=n;pickedChar=ch;break outer1c;}}}
-      // 5순위: 직업중복X(절대)
-      if(!picked){outer2:for(const n of cands){for(const ch of rDQ[n]){const b=ch.baseCls||cleanCls(ch.cls);if(ep.usedCls.has(b))continue;picked=n;pickedChar=ch;break outer2;}}}
-      if(!picked){picked=cands[0];pickedChar=rDQ[picked][0];}
+      for(const cands of (timeFit.length?[timeFit,base]:[base])){
+        // 1순위: 직업중복X + 시너지중복X + 백사멸2이하
+        outer1:for(const n of cands){for(const ch of rDQ[n]){const b=ch.baseCls||cleanCls(ch.cls);if(ep.usedCls.has(b)||hasSynergyCls(ep,ch.cls,b)||(isBsam(ch.cls,b)&&ep.bsamCount>=2))continue;picked=n;pickedChar=ch;break outer1;}}
+        // 2순위: 직업중복X + 시너지중복X
+        if(!picked){outer1b:for(const n of cands){for(const ch of rDQ[n]){const b=ch.baseCls||cleanCls(ch.cls);if(ep.usedCls.has(b)||hasSynergyCls(ep,ch.cls,b))continue;picked=n;pickedChar=ch;break outer1b;}}}
+        // 3순위: 직업중복X + 백사멸2이하
+        if(!picked){outer1c:for(const n of cands){for(const ch of rDQ[n]){const b=ch.baseCls||cleanCls(ch.cls);if(ep.usedCls.has(b)||(isBsam(ch.cls,b)&&ep.bsamCount>=2))continue;picked=n;pickedChar=ch;break outer1c;}}}
+        // 4순위: 직업중복X(절대)
+        if(!picked){outer2:for(const n of cands){for(const ch of rDQ[n]){const b=ch.baseCls||cleanCls(ch.cls);if(ep.usedCls.has(b))continue;picked=n;pickedChar=ch;break outer2;}}}
+        if(picked)break; // 시간 맞는 후보에서 찾았으면 전체 후보로 넓히지 않는다
+      }
+      if(!picked){picked=base[0];pickedChar=rDQ[picked][0];}
       if(picked&&pickedChar){addSlot(ep,pickedChar,used);rDQ[picked]=rDQ[picked].filter(c=>c.uid!==pickedChar.uid);mCnt[picked]=(mCnt[picked]||0)+1;}else break;
     }
     sortP(ep);if(filledCount(ep.slots)>=3)parties.push(ep);else break;
@@ -694,8 +868,8 @@ function buildParties(){
   MEMBER_ORDER.filter(n=>selectedMembers.has(n)).forEach(n=>{maxCharsPerMember[n]=getEligibleChars(n).length;});
   const used=new Set(),mCnt={};MEMBER_ORDER.forEach(n=>{mCnt[n]=0;});
   let allP=[];
-  if(currentDiff.sheetKey==="벨가르딘"){
-    // 8인 레이드: 서포터 2명 + 딜러 6명을 2파티(각 4명)로 자유 배분
+  if(isEightManRaid()){
+    // 8인 레이드: 4인 파티 2개가 한 세트(공대)로 동시 입장. 인원이 남으면 세트를 반복 생성
     allP=buildVelgardinParties(used,mCnt);
   } else if(currentDiff.topTier && !isABGroupBroken()){
     const p1=makeParty();
@@ -734,11 +908,25 @@ function updateRaidLabel(){
   if(crl) crl.textContent=`${raidEmoji[raidName]||""} ${raidName}`;
 }
 function recalcCounts(){
+  // 수동 편집(드롭다운/드래그) 후에도 서포터가 마지막 자리를 유지하도록 정규화
+  allParties=allParties.map(orderSlots);
   partyCounts={};MEMBERS_RAW.forEach(m=>{partyCounts[m.name]=0;});
   allParties.forEach(slots=>slots.forEach(s=>{if(s)partyCounts[s.member]=(partyCounts[s.member]||0)+1;}));
 }
-function addEmptyParty(){allParties.push([null,null,null,null]);document.getElementById("partyCountLabel").textContent=allParties.length;renderParties();}
-function removeParty(pi){allParties.splice(pi,1);recalcCounts();document.getElementById("partyCountLabel").textContent=allParties.length;renderParties();renderStats();}
+// 8인 레이드는 파티를 세트(2개) 단위로 추가/삭제해야 홀수 파티가 생기지 않는다
+function addEmptyParty(){
+  allParties.push([null,null,null,null]);
+  if(isEightManRaid())allParties.push([null,null,null,null]);
+  document.getElementById("partyCountLabel").textContent=allParties.length;renderParties();
+}
+function removeParty(pi){
+  if(isEightManRaid()){
+    const base=setIdxOf(pi)*2;
+    if(!confirm(`${setIdxOf(pi)+1}공대(파티 2개)를 통째로 삭제할까요?`))return;
+    allParties.splice(base,2);
+  } else allParties.splice(pi,1);
+  recalcCounts();document.getElementById("partyCountLabel").textContent=allParties.length;renderParties();renderStats();
+}
 function getSlotOptions(pi,si){
   const cur=allParties[pi][si];
   const otherUids=new Set();allParties.forEach((slots,pii)=>slots.forEach((s,sii)=>{if(s&&!(pii===pi&&sii===si))otherUids.add(s.uid);}));
@@ -757,30 +945,68 @@ function partyBadges(slots){
   if(Object.values(clsCnt).some(v=>v>1))warns.push("직업 중복");
   if(Object.values(memberCnt).some(v=>v>1))warns.push("멤버 중복");
   if(bsamCnt>2)warns.push("백사멸 3개+");
-  // 시너지 중복 체크
+  // 시너지 중복 체크 (복수 소속 직업 포함, 어떤 시너지가 겹쳤는지 표기)
   const synGroups={};
-  slots.filter(s=>s).forEach(s=>{const b=s.baseCls||cleanCls(s.cls);const g=getSynergyGroup(s.cls,b);if(g>=0){synGroups[g]=(synGroups[g]||0)+1;}});
-  if(Object.values(synGroups).some(v=>v>1))warns.push("시너지 중복");
+  slots.filter(s=>s).forEach(s=>{
+    const b=s.baseCls||cleanCls(s.cls);
+    getSynergyGroups(s.cls,b).forEach(g=>{synGroups[g]=(synGroups[g]||0)+1;});
+  });
+  Object.entries(synGroups).filter(([,v])=>v>1)
+    .forEach(([g])=>warns.push(`${SYNERGY_GROUPS[g].name} 중복`));
+  // 궁합 금지 조합
+  bannedPairsIn(slots).forEach(([sup,deal])=>warns.push(`${sup}서폿+${deal}딜러`));
   // 시간대 미스매치 체크
   const times=slots.filter(s=>s).map(s=>memberStartTime[s.member]).filter(Boolean);
-  if(timeMismatchLevel(times)>=2)warns.push("접속시간 불일치");
+  if(timeMismatchLevel(times)>TIME_TOLERANCE)warns.push("접속시간 불일치");
   return{hasSupp,warns,bsamCnt,cnt:slots.filter(s=>s).length};
+}
+// 8인 세트 구분 헤더 (n공대 · 총원 / 입장 가능 여부)
+function makeSetHead(pi){
+  const base=setIdxOf(pi)*2;
+  const total=filledCount(allParties[base]||[])+filledCount(allParties[base+1]||[]);
+  const ok=setIsComplete(pi);
+  const head=document.createElement("div");head.className="set-head";
+  const name=document.createElement("span");name.className="set-head-name";
+  name.textContent=`${setIdxOf(pi)+1}공대 · 8인 동시 입장`;
+  const tag=document.createElement("span");
+  tag.className=ok?"set-head-ok":"set-head-warn";
+  tag.textContent=ok?`${total}/8 입장 가능`:`${total}/8 인원 미달`;
+  head.appendChild(name);head.appendChild(tag);
+  // 공대 시작 시간 = 8명 중 가장 늦은 사람 기준
+  const setSlots=[...(allParties[base]||[]),...(allParties[base+1]||[])];
+  const startLbl=partyStartLabel(setSlots);
+  if(startLbl){
+    const ts=document.createElement("span");ts.className="badge badge-time";
+    ts.textContent=`${startLbl} 시작`;head.appendChild(ts);
+  }
+  const line=document.createElement("span");line.className="set-head-line";
+  head.appendChild(line);
+  return head;
 }
 function renderParties(){
   const wrap=document.getElementById("partiesWrap");wrap.innerHTML="";
   allParties.forEach((slots,pi)=>{
+    // 8인 레이드: 세트 시작마다 공대 구분선
+    if(isEightManRaid()&&pi%2===0)wrap.appendChild(makeSetHead(pi));
     const avg=avgBp(slots);const{hasSupp,warns,bsamCnt,cnt}=partyBadges(slots);
     const block=document.createElement("div");block.className="party-block";
     const hdr=document.createElement("div");hdr.className="party-header";
     let badges="";
     if(hasSupp)badges+='<span class="badge badge-sup">서포터 있음</span>';
     if(cnt<4)badges+=`<span class="badge badge-short">${cnt}명</span>`;
+    // 파티 시작 시간 = 가장 늦은 사람 기준
+    const startLbl=partyStartLabel(slots);
+    if(startLbl)badges+=`<span class="badge badge-time">${startLbl} 시작</span>`;
+    // 8인 레이드: 세트(공대)가 8인을 못 채우면 입장 불가 경고
+    if(isEightManRaid()&&!setIsComplete(pi))badges+='<span class="badge badge-warn">8인 미달 — 입장 불가</span>';
     warns.forEach(w=>{badges+=`<span class="badge badge-warn">${w}</span>`;});
     if(bsamCnt>0&&bsamCnt<=2)badges+=`<span class="badge badge-bsam">백사멸 ${bsamCnt}</span>`;
+    const title=isEightManRaid()?setLabelOf(pi):`파티 ${pi+1}`;
     const left=document.createElement("div");left.className="party-header-left";
-    left.innerHTML=`<span class="drag-handle" title="드래그해서 순서 변경">⠿</span><span class="party-title">파티 ${pi+1}</span>${badges}`;
+    left.innerHTML=`<span class="drag-handle" title="드래그해서 순서 변경">⠿</span><span class="party-title">${title}</span>${badges}`;
     const right=document.createElement("div");right.style.cssText="display:flex;align-items:center;gap:8px;";
-    if(cnt>0)right.innerHTML=`<span class="party-avg">평균 전투력 ${avg.toLocaleString()}</span>`;
+    const totalBp=slots.filter(s=>s).reduce((s,c)=>s+c.bp,0);
+    if(cnt>0)right.innerHTML=`<span class="party-avg">총 ${totalBp.toLocaleString()} · 평균 ${avg.toLocaleString()}</span>`;
     const rmBtn=document.createElement("button");rmBtn.className="btn btn-sm";rmBtn.textContent="삭제";rmBtn.style.cssText="color:var(--red);border-color:#F09595;background:transparent;";rmBtn.onclick=()=>removeParty(pi);
     right.appendChild(rmBtn);hdr.appendChild(left);hdr.appendChild(right);block.appendChild(hdr);
     const slotGrid=document.createElement("div");slotGrid.className="slot-grid";
@@ -788,7 +1014,11 @@ function renderParties(){
       const isSup=slot&&isSupport(slot.cls);
       const div=document.createElement("div");div.className="party-slot"+(isSup?" support-slot":"");
       const roleDiv=document.createElement("div");roleDiv.className="slot-role"+(isSup?" sup-role":"");
-      roleDiv.textContent=slot?(isSup?"서포터":`딜러 ${si+1}`):"—";div.appendChild(roleDiv);
+      // 서포터는 항상 마지막 자리 — 빈 슬롯도 그 자리에 맞는 역할을 표시
+      const isLast=si===slots.length-1;
+      roleDiv.textContent=slot?(isSup?"서포터":`딜러 ${si+1}`):(isLast?"서포터":`딜러 ${si+1}`);
+      if(!slot&&isLast)roleDiv.classList.add("sup-role");
+      div.appendChild(roleDiv);
       if(slot){
         const nm=document.createElement("div");nm.className="slot-name";nm.textContent=slot.member;div.appendChild(nm);
         const cl=document.createElement("div");cl.className="slot-cls";cl.textContent=slot.cls;div.appendChild(cl);
@@ -808,9 +1038,9 @@ function renderParties(){
       sel.innerHTML='<option value="">변경...</option>';
       opts.forEach((o,oi)=>{const opt=document.createElement("option");opt.value=oi;opt.textContent=`${o.member} · ${o.cls} · ${o.bp.toLocaleString()}`;if(slot&&o.uid===slot.uid)opt.selected=true;sel.appendChild(opt);});
       sel.onchange=()=>{
-        const prev=allParties[pi][si];
-        if(sel.value===""){if(prev)partyCounts[prev.member]=Math.max(0,(partyCounts[prev.member]||1)-1);allParties[pi][si]=null;}
-        else{const chosen=opts[parseInt(sel.value)];if(prev)partyCounts[prev.member]=Math.max(0,(partyCounts[prev.member]||1)-1);allParties[pi][si]=chosen;partyCounts[chosen.member]=(partyCounts[chosen.member]||0)+1;}
+        allParties[pi][si]=sel.value===""?null:opts[parseInt(sel.value)];
+        // recalcCounts가 참여횟수 재계산 + 서포터 자리 정규화를 함께 처리
+        recalcCounts();
         renderParties();renderStats();
       };
       div.appendChild(sel);slotGrid.appendChild(div);
@@ -828,6 +1058,50 @@ function renderStats(){
     d.innerHTML=`<span class="stat-name">${name}</span><span class="stat-cur${isFull?" stat-full":""}">${cur}</span><span class="stat-max">/ ${max}</span>`;
     grid.appendChild(d);
   });
+  renderUnassigned();
+}
+// 미배치 캐릭터 표 (서포터 먼저, 그다음 전투력 내림차순)
+function renderUnassigned(){
+  const wrap=document.getElementById("unassignedWrap");
+  const cntEl=document.getElementById("unassignedCount");
+  if(!wrap)return;
+  wrap.innerHTML="";
+  const pool=getPoolChars().sort((a,b)=>{
+    const sa=isSupport(a.cls,a.baseCls)?0:1, sb=isSupport(b.cls,b.baseCls)?0:1;
+    return sa-sb || b.bp-a.bp;
+  });
+  if(cntEl)cntEl.textContent=pool.length?`(${pool.length}캐)`:"";
+  if(!pool.length){
+    wrap.innerHTML='<div class="un-empty">미배치 캐릭터가 없습니다.</div>';
+    return;
+  }
+  const scroll=document.createElement("div");scroll.className="un-scroll";
+  const tbl=document.createElement("table");tbl.className="un-table";
+  const thead=document.createElement("thead");
+  const hr=document.createElement("tr");
+  ["유저","직업","역할","접속","아이템 레벨","전투력"].forEach((h,i)=>{
+    const th=document.createElement("th");th.textContent=h;
+    if(i>=4)th.style.textAlign="right";
+    hr.appendChild(th);
+  });
+  thead.appendChild(hr);tbl.appendChild(thead);
+  const tbody=document.createElement("tbody");
+  pool.forEach(c=>{
+    const sup=isSupport(c.cls,c.baseCls);
+    const tr=document.createElement("tr");if(sup)tr.className="un-sup";
+    const td=(txt,cls)=>{const t=document.createElement("td");t.textContent=txt;if(cls)t.className=cls;return t;};
+    tr.appendChild(td(c.member,"un-member"));
+    tr.appendChild(td(c.cls));
+    const roleTd=document.createElement("td");
+    const rs=document.createElement("span");rs.className="un-role "+(sup?"sup":"deal");
+    rs.textContent=sup?"서포터":"딜러";roleTd.appendChild(rs);tr.appendChild(roleTd);
+    const tOpt=TIME_OPTIONS.find(o=>o.value===memberStartTime[c.member]);
+    tr.appendChild(td(tOpt?tOpt.label:"—","un-ilvl"));
+    tr.appendChild(td(c.ilvl.toLocaleString(),"un-ilvl"));
+    tr.appendChild(td(c.bp.toLocaleString(),"un-bp"));
+    tbody.appendChild(tr);
+  });
+  tbl.appendChild(tbody);scroll.appendChild(tbl);wrap.appendChild(scroll);
 }
 
 // ── 칸반 ──
@@ -922,14 +1196,19 @@ function renderKanban(){
 
   // 파티 컬럼
   allParties.forEach((slots,pi)=>{
+    // 8인 레이드: 세트 시작마다 공대 구분선
+    if(isEightManRaid()&&pi%2===0)partiesEl.appendChild(makeSetHead(pi));
     const col=document.createElement("div");col.className="kanban-party";
     const hdr=document.createElement("div");hdr.className="kanban-party-header";
     const avg=avgBp(slots),cnt=filledCount(slots);
     const handleSpan=document.createElement("span");handleSpan.className="drag-handle";handleSpan.title="드래그해서 순서 변경";handleSpan.textContent="⠿";
-    const titleSpan=document.createElement("span");titleSpan.className="kanban-party-title";titleSpan.textContent=`파티 ${pi+1}`;
+    const titleSpan=document.createElement("span");titleSpan.className="kanban-party-title";
+    titleSpan.textContent=isEightManRaid()?setLabelOf(pi):`파티 ${pi+1}`;
     const rightDiv=document.createElement("div");rightDiv.style.cssText="display:flex;align-items:center;gap:8px;";
     const avgSpan=document.createElement("span");avgSpan.className="kanban-party-avg";avgSpan.textContent=cnt>0?`평균 ${avg.toLocaleString()}`:"";
-    const delBtn=document.createElement("button");delBtn.className="kanban-del-btn";delBtn.textContent="✕";delBtn.onclick=()=>{allParties.splice(pi,1);recalcCounts();document.getElementById("partyCountLabel").textContent=allParties.length;renderKanban();renderParties();renderStats();};
+    const delBtn=document.createElement("button");delBtn.className="kanban-del-btn";delBtn.textContent="✕";
+    delBtn.title=isEightManRaid()?"공대(파티 2개) 삭제":"파티 삭제";
+    delBtn.onclick=()=>{removeParty(pi);renderKanban();};
     rightDiv.appendChild(avgSpan);rightDiv.appendChild(delBtn);
     hdr.appendChild(handleSpan);hdr.appendChild(titleSpan);hdr.appendChild(rightDiv);col.appendChild(hdr);
 
@@ -938,9 +1217,9 @@ function renderKanban(){
       const isSup=slot&&isSupport(slot.cls);
       const zone=document.createElement("div");
       zone.className="kanban-slot"+(isSup?" sup-slot":"")+(slot?" has-card":"");
-      // 슬롯 라벨
+      // 슬롯 라벨 — 마지막 자리는 서포터 자리
       const tag=document.createElement("span");tag.className="slot-tag";
-      tag.textContent=`파티원 ${si+1}`;
+      tag.textContent=si===slots.length-1?"서포터":`딜러 ${si+1}`;
       if(!slot)zone.appendChild(tag);
       // 카드
       if(slot){
@@ -951,16 +1230,33 @@ function renderKanban(){
         if(!dragSrc)return;
         const srcChar=dragSrc.char;
         const targetChar=allParties[pi][si];
-        // 같은 파티 내 같은 멤버 중복 방지
-        const partyMembers=allParties[pi].filter((s,i)=>s&&i!==si).map(s=>s.member);
-        if(partyMembers.includes(srcChar.member)){dragSrc=null;return;}
+        // 같은 멤버 중복 방지. 8인 레이드는 같은 세트(공대) 전체가 동시 입장하므로 세트 단위로 검사
+        const scope=isEightManRaid()
+          ? [setIdxOf(pi)*2,setIdxOf(pi)*2+1]
+          : [pi];
+        // 대상 슬롯과 (슬롯 이동이면) 출발 슬롯은 비워지므로 검사에서 제외
+        const isExempt=(qi,i)=>(qi===pi&&i===si)||
+          (dragSrc.type==="slot"&&qi===dragSrc.partyIdx&&i===dragSrc.slotIdx);
+        const busyMembers=[];
+        scope.forEach(qi=>{
+          (allParties[qi]||[]).forEach((s,i)=>{ if(s&&!isExempt(qi,i))busyMembers.push(s.member); });
+        });
+        if(busyMembers.includes(srcChar.member)){dragSrc=null;return;}
         if(dragSrc.type==="pool"){
           allParties[pi][si]=srcChar;
           // 기존 카드는 풀로 자동 복귀 (usedUids에서 빠지므로 getPoolChars에서 반영)
         } else if(dragSrc.type==="slot"){
-          // 같은 파티 내 이동이면 멤버 중복 체크 완화
-          const srcPartyMembers=allParties[dragSrc.partyIdx].filter((s,i)=>s&&i!==dragSrc.slotIdx).map(s=>s.member);
-          if(targetChar&&srcPartyMembers.includes(targetChar.member)&&dragSrc.partyIdx!==pi){dragSrc=null;return;}
+          // 스왑의 반대 방향도 검사: targetChar가 출발 세트로 들어가도 멤버 중복이 없어야 함
+          const srcScope=isEightManRaid()
+            ? [setIdxOf(dragSrc.partyIdx)*2,setIdxOf(dragSrc.partyIdx)*2+1]
+            : [dragSrc.partyIdx];
+          if(targetChar&&!srcScope.includes(pi)){
+            const srcBusy=[];
+            srcScope.forEach(qi=>{
+              (allParties[qi]||[]).forEach((s,i)=>{ if(s&&!isExempt(qi,i))srcBusy.push(s.member); });
+            });
+            if(srcBusy.includes(targetChar.member)){dragSrc=null;return;}
+          }
           allParties[dragSrc.partyIdx][dragSrc.slotIdx]=targetChar||null;
           allParties[pi][si]=srcChar;
         }
@@ -974,11 +1270,12 @@ function renderKanban(){
     partiesEl.appendChild(col);
   });
 
-  const addBtn=document.createElement("button");addBtn.className="kanban-add-btn";addBtn.textContent="+ 파티 추가";
-  addBtn.onclick=()=>{allParties.push([null,null,null,null]);document.getElementById("partyCountLabel").textContent=allParties.length;renderKanban();renderParties();};
+  const addBtn=document.createElement("button");addBtn.className="kanban-add-btn";
+  addBtn.textContent=isEightManRaid()?"+ 공대 추가 (파티 2개)":"+ 파티 추가";
+  addBtn.onclick=()=>{addEmptyParty();renderKanban();};
   partiesEl.appendChild(addBtn);
 }
-function kanbanAddParty(){allParties.push([null,null,null,null]);document.getElementById("partyCountLabel").textContent=allParties.length;renderKanban();renderParties();}
+function kanbanAddParty(){addEmptyParty();renderKanban();}
 function syncFromKanban(){renderParties();renderStats();switchTab("recommend");}
 
 // ── 프리셋 ──
@@ -992,7 +1289,14 @@ function showPresetStatus(msg,type){
 function savePreset(){
   if(!allParties.length){showPresetStatus("저장할 파티 구성이 없습니다.","err");return;}
   const name=presetName();
-  const partiesData=allParties.map(slots=>slots.map(slot=>slot?{member:slot.member,cls:slot.cls,ilvl:slot.ilvl,bp:slot.bp,uid:slot.uid,세르카:slot.세르카,성심당:slot.성심당}:null));
+  // 레이드 컬럼은 RAIDS에서 파생 — 새 레이드 추가 시 여기를 고칠 필요가 없다
+  const raidKeys=Object.keys(RAIDS);
+  const partiesData=allParties.map(slots=>slots.map(slot=>{
+    if(!slot)return null;
+    const rec={member:slot.member,cls:slot.cls,baseCls:slot.baseCls||cleanCls(slot.cls),ilvl:slot.ilvl,bp:slot.bp,uid:slot.uid};
+    raidKeys.forEach(k=>{rec[k]=slot[k]||"";});
+    return rec;
+  }));
   fetch(getUrl(),{method:"POST",body:JSON.stringify({action:"savePreset",name,raid:document.getElementById("raidSel").value,diff:document.getElementById("diffSel").value,members:[...selectedMembers].join(","),parties:partiesData})})
   .then(r=>r.json()).then(d=>{if(d.ok){showPresetStatus(`'${name}' 저장 완료`,"ok");loadPresets();}else showPresetStatus("저장 실패","err");})
   .catch(()=>showPresetStatus("저장 실패: 네트워크 오류","err"));
@@ -1035,7 +1339,17 @@ function applyPreset(p){
   else{selectedMembers=new Set(MEMBER_ORDER);}
   renderMembers();
   // 파티 직접 복원 (buildParties 실행 없음)
-  allParties=p.parties.map(slots=>slots.map(slot=>slot?{...slot}:null));
+  // 구 프리셋은 벨가르딘/baseCls 필드가 없으므로 현재 시트 데이터에서 uid로 보강
+  const byUid={};
+  MEMBERS_RAW.forEach(m=>m.chars.forEach((c,i)=>{byUid[m.name+"_"+i]=c;}));
+  allParties=p.parties.map(slots=>slots.map(slot=>{
+    if(!slot)return null;
+    const src=byUid[slot.uid]||{};
+    const rec={...src,...slot};
+    Object.keys(RAIDS).forEach(k=>{ if(rec[k]===undefined||rec[k]==="")rec[k]=src[k]||""; });
+    rec.baseCls=rec.baseCls||cleanCls(rec.cls);
+    return rec;
+  }));
   recalcCounts();
   MEMBER_ORDER.filter(n=>selectedMembers.has(n)).forEach(n=>{maxCharsPerMember[n]=getEligibleChars(n).length;});
   document.getElementById("partyCountLabel").textContent=allParties.length;
@@ -1136,8 +1450,8 @@ function toggleCompleted(slot, partyIdx, slotIdx) {
     completedUids.add(slot.uid);
     // 파티 슬롯에서 제거
     if(partyIdx !== undefined && slotIdx !== undefined) {
-      partyCounts[slot.member] = Math.max(0, (partyCounts[slot.member]||1)-1);
       allParties[partyIdx][slotIdx] = null;
+      recalcCounts();
     }
     // 완료 현황에 즉시 추가
     completedCharData.push({uid:slot.uid, member:slot.member, cls:slot.cls, bp:slot.bp});
@@ -1194,10 +1508,19 @@ function setupPartyDrag(el, idx, type){
     e.preventDefault();
     el.classList.remove('drag-over-party');
     if(dragPartyIdx === null || dragPartyIdx === idx || dragPartyType !== type) return;
-    // 순서 교환
-    const tmp = allParties[dragPartyIdx];
-    allParties[dragPartyIdx] = allParties[idx];
-    allParties[idx] = tmp;
+    if(isEightManRaid()){
+      // 8인 레이드는 세트(공대) 단위로 교환해야 짝이 깨지지 않는다
+      const a = setIdxOf(dragPartyIdx)*2, b = setIdxOf(idx)*2;
+      if(a === b){ dragPartyIdx = null; return; }
+      const setA = allParties.slice(a, a+2), setB = allParties.slice(b, b+2);
+      allParties.splice(a, 2, ...setB);
+      allParties.splice(b, 2, ...setA);
+    } else {
+      // 순서 교환
+      const tmp = allParties[dragPartyIdx];
+      allParties[dragPartyIdx] = allParties[idx];
+      allParties[idx] = tmp;
+    }
     recalcCounts();
     document.getElementById('partyCountLabel').textContent = allParties.length;
     if(type === 'recommend'){ renderParties(); renderStats(); }
@@ -1211,13 +1534,67 @@ function exportText(){
   const diffName = document.getElementById('diffSel').value;
   const prefix = `**${raidName} ${diffName}**`;
   const divider = '='.repeat(69);
-  const lines = allParties.map(slots=>{
+  const lines = allParties.map((slots,pi)=>{
     const members = slots.filter(s=>s).map(s=>`${s.member}-${s.cls}`).join(', ');
-    return `${prefix} : ${members}`;
+    // 8인 레이드는 어느 공대의 몇 번째 파티인지 표기
+    const tag = isEightManRaid() ? ` [${setIdxOf(pi)+1}공대-${pi%2+1}]` : '';
+    return `${prefix}${tag} : ${members}`;
   });
   const text = `## ${raidName} ${diffName}\n` + lines.join('\n') + '\n' + divider;
   const box = document.getElementById('exportBox');
   box.textContent = text;
+  box.style.display = 'block';
+  document.getElementById('copyBtn').style.display = 'inline-block';
+}
+// 상세 리포트: 파티별 구성 + 총/평균 전투력 + 시너지 요약 + 미배치 목록
+function exportReport(){
+  const raidName = document.getElementById('raidSel').value;
+  const diffName = document.getElementById('diffSel').value;
+  const out = [`## ${raidName} ${diffName}`, ''];
+  allParties.forEach((slots,pi)=>{
+    if(isEightManRaid() && pi%2===0){
+      const base=setIdxOf(pi)*2;
+      const tot=filledCount(allParties[base]||[])+filledCount(allParties[base+1]||[]);
+      out.push(`━━ ${setIdxOf(pi)+1}공대 (8인 동시 입장) — ${tot}/8 ${tot===8?'입장 가능':'인원 미달'} ━━`);
+    }
+    const f = slots.filter(s=>s);
+    const total = f.reduce((s,c)=>s+c.bp,0);
+    const avg = f.length ? Math.round(total/f.length) : 0;
+    out.push(isEightManRaid()?`[${setIdxOf(pi)+1}공대 · 파티 ${pi%2+1}]`:`[파티 ${pi+1}]`);
+    // 슬롯은 이미 딜러→서포터 순으로 정규화되어 있음
+    slots.forEach((s,si)=>{
+      const isLast = si===slots.length-1;
+      const role = s ? (isSupport(s.cls,s.baseCls)?'서포터':`딜러${si+1}`) : (isLast?'서포터':`딜러${si+1}`);
+      out.push(s ? `  ${role.padEnd(6)} ${s.member} · ${s.cls} · ${s.bp.toLocaleString()}`
+                 : `  ${role.padEnd(6)} (비어 있음)`);
+    });
+    out.push(`  총 전투력 ${total.toLocaleString()} · 평균 ${avg.toLocaleString()}`);
+    const st=partyStartLabel(slots);
+    if(st)out.push(`  시작 시간: ${st} (가장 늦은 사람 기준)`);
+    // 시너지 구성
+    const syn={};
+    f.forEach(s=>getSynergyGroups(s.cls,s.baseCls||cleanCls(s.cls))
+      .forEach(g=>{syn[g]=(syn[g]||0)+1;}));
+    const synTxt=Object.entries(syn)
+      .map(([g,v])=>`${SYNERGY_GROUPS[g].name}${v>1?`×${v}`:''}`).join(', ');
+    out.push(`  시너지: ${synTxt||'없음'}`);
+    const {warns} = partyBadges(slots);
+    if(warns.length) out.push(`  ⚠ ${warns.join(', ')}`);
+    out.push('');
+  });
+  // 미배치 캐릭터
+  const pool = getPoolChars().sort((a,b)=>{
+    const sa=isSupport(a.cls,a.baseCls)?0:1, sb=isSupport(b.cls,b.baseCls)?0:1;
+    return sa-sb || b.bp-a.bp;
+  });
+  out.push(`── 미배치 캐릭터 (${pool.length}캐) ──`);
+  if(!pool.length) out.push('  없음');
+  else pool.forEach(c=>{
+    const t=TIME_OPTIONS.find(o=>o.value===memberStartTime[c.member]);
+    out.push(`  ${isSupport(c.cls,c.baseCls)?'서포터':'딜러  '} ${c.member} · ${c.cls} · ${t?t.label:'—'} · ${c.ilvl.toLocaleString()} · ${c.bp.toLocaleString()}`);
+  });
+  const box = document.getElementById('exportBox');
+  box.textContent = out.join('\n');
   box.style.display = 'block';
   document.getElementById('copyBtn').style.display = 'inline-block';
 }
