@@ -188,6 +188,10 @@ select{min-width:140px;cursor:pointer;}
 .kanban-party.drag-over-party { border-color:var(--accent); }
 .drag-handle { cursor:grab; color:var(--text3); padding:0 6px; font-size:16px; user-select:none; }
 .drag-handle:hover { color:var(--accent); }
+.import-box { margin-top:12px; background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-sm); padding:12px 14px; }
+.import-hint { font-size:11px; color:var(--text3); line-height:1.7; margin-bottom:8px; }
+.import-input { width:100%; min-height:110px; resize:vertical; background:var(--surface); border:1px solid var(--border2); border-radius:var(--radius-sm); color:var(--text); font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; font-size:12px; line-height:1.55; padding:10px 12px; outline:none; transition:border-color .15s; }
+.import-input:focus { border-color:var(--accent); }
 .export-box { margin-top:12px; background:var(--surface2); border:1px solid var(--border); border-radius:var(--radius-sm); padding:12px 14px; font-size:12px; color:var(--text2); line-height:1.8; white-space:pre-wrap; word-break:break-all; display:none; }
 .export-row { display:flex; gap:8px; align-items:center; margin-top:10px; }
 
@@ -318,8 +322,20 @@ select{min-width:140px;cursor:pointer;}
         <button class="btn" onclick="exportText()">텍스트로 출력</button>
         <button class="btn" onclick="exportReport()">상세 리포트</button>
         <button class="btn btn-sm" id="copyBtn" onclick="copyExport()" style="display:none;">복사</button>
+        <button class="btn" onclick="toggleImportBox()">텍스트로 불러오기</button>
       </div>
       <div class="export-box" id="exportBox"></div>
+      <div class="import-box" id="importBox" style="display:none;">
+        <div class="import-hint">'텍스트로 출력' 결과를 그대로 붙여넣고 <b>파티 구성에 반영</b>을 누르세요. 헤더(##)와 구분선(===)은 있어도 없어도 됩니다.</div>
+        <textarea id="importText" class="import-input" spellcheck="false" placeholder="## 성심당 3단계
+**성심당 3단계** : 카페룽고-창술사, 잼둘냥-가나, 석사-차원, 전복치킨-바드
+====================================================================="></textarea>
+        <div class="export-row">
+          <button class="btn btn-primary" onclick="importFromText()">파티 구성에 반영</button>
+          <button class="btn" onclick="clearImportText()">지우기</button>
+        </div>
+        <div id="importStatus" class="status-box"></div>
+      </div>
     </div>
 
     <!-- 칸반 탭 -->
@@ -2381,6 +2397,146 @@ function exportReport(){
   box.textContent = out.join('\n');
   box.style.display = 'block';
   document.getElementById('copyBtn').style.display = 'inline-block';
+}
+// ── 텍스트 입력 → 파티 구성 반영 ──
+// '텍스트로 출력' 결과를 그대로 되돌린다.
+//   ## 성심당 3단계
+//   **성심당 3단계** : 카페룽고-창술사, 잼둘냥-가나, 석사-차원, 전복치킨-바드
+//   =====================================================================
+// 8인 레이드의 [n공대-m] 태그도 인식해 공격대 짝을 복원한다.
+function toggleImportBox(){
+  const box=document.getElementById("importBox");
+  const open=box.style.display!=="block";
+  box.style.display=open?"block":"none";
+  if(open)document.getElementById("importText").focus();
+}
+function clearImportText(){
+  document.getElementById("importText").value="";
+  document.getElementById("importStatus").style.display="none";
+}
+function showImportStatus(msg,type){
+  const el=document.getElementById("importStatus");
+  el.style.display="block";el.textContent=msg;el.className="status-box status-"+type;
+}
+// "성심당 3단계" → {raid,diff}. RAIDS 표를 기준으로 나눈다(레이드명에 공백이 있어도 안전).
+function splitRaidDiff(s){
+  const t=String(s||"").replace(/\*/g,"").trim();
+  for(const raid of Object.keys(RAIDS)){
+    if(!t.startsWith(raid))continue;
+    const rest=t.slice(raid.length).trim();
+    if(!rest)return {raid,diff:""};
+    const d=RAIDS[raid].find(x=>x.label===rest);
+    if(d)return {raid,diff:d.label};
+  }
+  return null;
+}
+// "카페룽고-창술사" → {member,cls}. 멤버명에는 '-'가 없다고 보고 첫 '-'로 나눈다.
+function parseMemberEntry(s){
+  const t=String(s).trim();
+  const i=t.indexOf("-");
+  if(i<0)return null;
+  const member=t.slice(0,i).trim(), cls=t.slice(i+1).trim();
+  return (member&&cls)?{member,cls}:null;
+}
+function parsePartyText(text){
+  const rows=[];
+  let raid="",diff="";
+  String(text||"").split(/\r?\n/).forEach(raw=>{
+    const line=raw.trim();
+    if(!line||/^[=\-─━]{3,}$/.test(line))return;      // 구분선
+    const ci=line.indexOf(":");
+    if(ci<0){                                          // 파티 줄이 아니면 헤더로만 취급
+      const h=line.match(/^#{1,6}\s*(.+)$/);
+      if(h){const t=splitRaidDiff(h[1]);if(t){raid=raid||t.raid;diff=diff||t.diff;}}
+      return;
+    }
+    const head=line.slice(0,ci), body=line.slice(ci+1).trim();
+    // 머리말: **레이드 난이도** [n공대-m]
+    const tag=head.match(/\[\s*(\d+)\s*공대\s*-\s*(\d+)\s*\]/);
+    const t=splitRaidDiff(head.replace(/\[[^\]]*\]/g,"").replace(/^#{1,6}\s*/,""));
+    if(t){raid=raid||t.raid;diff=diff||t.diff;}
+    const entries=body.split(",").map(s=>s.trim())
+      .filter(s=>s&&s!=="-"&&s!=="—"&&s!=="(비어 있음)"&&s!=="빈 슬롯")
+      .map(parseMemberEntry).filter(Boolean);
+    // 레이드명이 확인되거나 공대 태그가 있으면 인원이 0명이어도 파티 줄로 본다
+    // (8인 레이드는 빈 파티도 자리를 지켜야 공격대 짝이 맞는다)
+    if(!entries.length&&!t&&!tag)return;
+    rows.push({entries,setIdx:tag?Number(tag[1]):null,partyIdx:tag?Number(tag[2]):null});
+  });
+  return {raid,diff,rows};
+}
+// 멤버명+직업을 시트의 실제 캐릭터로 맞춘다 (uid/전투력/아이템레벨 복원)
+function resolveTextChar(member,cls){
+  const m=MEMBERS_RAW.find(x=>x.name===member);
+  if(!m)return null;
+  let idx=m.chars.findIndex(c=>rawCls(c.cls)===rawCls(cls));
+  if(idx<0)idx=m.chars.findIndex(c=>cleanCls(c.cls)===cleanCls(cls));
+  if(idx<0)return null;
+  const c=m.chars[idx];
+  return {...c,member,cls:rawCls(c.cls),baseCls:c.baseCls||cleanCls(c.cls),uid:member+"_"+idx};
+}
+function importFromText(){
+  if(!MEMBERS_RAW.length){showImportStatus("먼저 구글 시트를 불러와 주세요.","err");return;}
+  const {raid,diff,rows}=parsePartyText(document.getElementById("importText").value);
+  if(!rows.length){
+    showImportStatus("파티 줄을 찾지 못했습니다. '텍스트로 출력' 결과를 그대로 붙여넣어 주세요.","err");return;
+  }
+  // 레이드·난이도 반영 (buildParties 는 호출하지 않는다 — 붙여넣은 구성을 그대로 살린다)
+  if(raid&&RAIDS[raid]){
+    document.getElementById("raidSel").value=raid;
+    const ds=document.getElementById("diffSel");
+    ds.innerHTML='<option value="">-- 난이도 --</option>';
+    RAIDS[raid].forEach(d=>{const o=document.createElement("option");o.value=d.label;o.textContent=d.label;ds.appendChild(o);});
+    if(diff){
+      ds.value=diff;
+      currentDiff=RAIDS[raid].find(d=>d.label===diff)||currentDiff;
+      const lr=document.getElementById("levelReq");
+      if(currentDiff){lr.textContent=`아이템 레벨 ${currentDiff.minIlvl}+`;lr.style.display="inline-block";}
+    }
+    renderMinBpInput();
+  }
+  // 8인 레이드 태그가 있으면 공대·파티 번호 순으로 정렬해 짝을 복원한다
+  const tagged=rows.some(r=>r.setIdx!==null);
+  if(tagged){
+    rows.sort((a,b)=>(a.setIdx??999)-(b.setIdx??999)||(a.partyIdx??999)-(b.partyIdx??999));
+  }
+  const usedUids=new Set();
+  const unresolved=[],dupes=[];
+  let seq=0;
+  let parties=rows.map(r=>{
+    const slots=[];
+    r.entries.forEach(({member,cls})=>{
+      let ch=resolveTextChar(member,cls);
+      if(!ch){
+        unresolved.push(`${member}-${cls}`);
+        // 시트에서 못 찾아도 구성은 보이도록 그대로 배치한다 (전투력은 0)
+        ch={member,cls:rawCls(cls),baseCls:cleanCls(cls),ilvl:0,bp:0,uid:"txt_"+member+"_"+(++seq)};
+      }
+      if(usedUids.has(ch.uid)){dupes.push(`${member}-${ch.cls}`);return;} // 같은 캐릭터 중복 배치 방지
+      usedUids.add(ch.uid);
+      slots.push(ch);
+    });
+    return orderSlots(slots);
+  });
+  // 공대 태그가 없으면 빈 파티는 버린다 (태그가 있으면 자리를 지켜야 짝이 맞는다)
+  if(!tagged)parties=parties.filter(s=>s.filter(x=>x).length);
+  if(!parties.flat().filter(s=>s).length){showImportStatus("배치할 캐릭터를 찾지 못했습니다.","err");return;}
+  // 8인 레이드는 파티 2개가 한 공격대 → 홀수면 빈 파티로 짝을 맞춘다
+  if(currentDiff?.partySize===8&&parties.length%2!==0)parties.push([null,null,null,null]);
+  // 텍스트에 등장한 멤버는 참여 멤버로 켠다 (꺼져 있으면 통계·슬롯 목록에서 빠진다)
+  parties.flat().filter(s=>s).forEach(s=>{if(MEMBER_ORDER.includes(s.member))selectedMembers.add(s.member);});
+  allParties=parties;
+  recalcCounts();
+  maxCharsPerMember={};
+  MEMBER_ORDER.filter(n=>selectedMembers.has(n)).forEach(n=>{maxCharsPerMember[n]=getEligibleChars(n).length;});
+  document.getElementById("partyCountLabel").textContent=allParties.length;
+  updateRaidLabel();
+  renderMembers();renderParties();renderStats();
+  const placed=allParties.flat().filter(s=>s).length;
+  let msg=`✓ ${allParties.length}개 파티 / 캐릭터 ${placed}명을 반영했습니다.`;
+  if(unresolved.length)msg+=` 시트에서 찾지 못한 ${unresolved.length}명(${unresolved.slice(0,3).join(", ")}${unresolved.length>3?" 외":""})은 전투력 0으로 표시됩니다.`;
+  if(dupes.length)msg+=` 중복으로 적힌 ${dupes.length}명(${dupes.slice(0,3).join(", ")})은 한 번만 배치했습니다.`;
+  showImportStatus(msg,unresolved.length||dupes.length?"err":"ok");
 }
 function copyExport(){
   const text = document.getElementById('exportBox').textContent;
