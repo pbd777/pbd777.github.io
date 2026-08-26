@@ -204,13 +204,13 @@ select{min-width:140px;cursor:pointer;}
 <body>
 <div class="container">
   <h1>로스트아크 파티 빌더</h1>
-  <p class="subtitle">구글 시트 연동 · 전투력 기준 자동 조합 <span style="font-size:11px;color:var(--border2);margin-left:4px;">v19</span></p>
+  <p class="subtitle">구글 시트 연동 · 전투력 기준 자동 조합 <span id="appVersion" style="font-size:11px;color:var(--border2);margin-left:4px;"></span></p>
 
   <div class="card">
     <div class="section-label">구글 시트 연동</div>
     <div class="row">
       <input type="text" id="sheetUrl" placeholder="Apps Script 웹 앱 URL"
-        value="https://script.google.com/macros/s/AKfycbz58J_WaVXSGr7bQbHSCDq9ix_SiB3GnpPE4hZPbVj1fFhkUqkEil0zthFtuhnQ26e2/exec"/>
+        value="https://script.googleusercontent.com/macros/echo?user_content_key=AUkAhnQGLGC2OM2KlzGDVOzslsAu0QObE8uXCV55JmLWi5HDd_9ig4Kbm6MqtuaQlK2TcmfYjGSYFK1NAari5Uk2au8l7erxtNhTgT3ntNjQm5lMh54x2NZ7JBngxozCZBL64xqpYuWSiD--TcXHDRrJ_BGJKmwhTeoOEOaKOfB99iw3VA8WczPyGahtYg5fxgFlDNTkw3o97x83kQlAqx6DYAHVQB00hEcsOrNfBhXaHYOfBg4n8FuXOllTEHigN2Ll3WZFogw99YrUq-RRiNtkxYNWr6rjhQ&amp;lib=MHCntlx628YFMzZWHdMexP-uQqv0JC1lu"/>
       <button class="btn btn-primary" onclick="loadSheet()">불러오기</button>
     </div>
     <div id="statusBox" class="status-box"></div>
@@ -324,6 +324,11 @@ select{min-width:140px;cursor:pointer;}
 </div>
 
 <script>
+// ── 버전 ──
+// 코드를 고칠 때마다 이 숫자만 올리면 화면 표시가 함께 바뀐다.
+// (기존에는 HTML에 직접 박아둔 문자열이라 갱신을 잊기 쉬웠다)
+const APP_VERSION="v20";
+
 const RAIDS={
   "성심당":[
     {label:"3단계",minIlvl:1750,topTier:true,sheetKey:"성심당",sheetVal:"3단계"},
@@ -341,17 +346,27 @@ const RAIDS={
     {label:"노말",minIlvl:1750,topTier:false,sheetKey:"벨가르딘",sheetVal:"노말",partySize:8}
   ]
 };
-// 8인 레이드 = 4인 파티 2개가 한 세트(공대)로 동시 입장
+// 8인 레이드 = 4인 파티 2개가 한 공격대로 동시 입장.
+// 인원이 모자라도 파티를 흩어놓지 않고 항상 공격대(2개 묶음) 단위로 구성한다.
 const isEightManRaid=()=>currentDiff?.partySize===8;
-// 세트 인덱스는 파티 순서에서 파생 (파티 2k, 2k+1이 한 세트) → 삭제/순서변경에도 자동 유지
+// 정원(8인)을 못 채운 공격대의 파티 수 — 표시 구분에만 쓰인다
+let partialPartyCount=0;
+// 8인 레이드에서는 모든 파티가 공격대에 속한다
+const isSetParty=pi=>isEightManRaid();
+// 공격대 인덱스는 파티 순서에서 파생 (파티 2k, 2k+1이 한 공격대) → 삭제/순서변경에도 자동 유지
 const setIdxOf=pi=>Math.floor(pi/2);
 const setLabelOf=pi=>`${setIdxOf(pi)+1}공대 · 파티 ${pi%2+1}`;
-// 해당 파티가 속한 세트가 8인을 채웠는지
+// 해당 공격대가 8인을 채웠는지
 function setIsComplete(pi){
   const base=setIdxOf(pi)*2;
   const a=allParties[base],b=allParties[base+1];
   if(!a||!b)return false;
   return filledCount(a)===4&&filledCount(b)===4;
+}
+// 해당 공격대의 현재 인원
+function setFilledCount(pi){
+  const base=setIdxOf(pi)*2;
+  return filledCount(allParties[base]||[])+filledCount(allParties[base+1]||[]);
 }
 const SUPPORTS=["바드","홀나","도화가","발키리"];
 const BSAM=["창술사","블레","슬레","데헌","리퍼"];
@@ -410,13 +425,13 @@ function sortPartiesByStartTime(parties){
     const r=partyStartRank(slots);
     return r===null?Infinity:r; // 시간 정보가 없는(빈) 파티는 맨 뒤
   };
-  if(!isEightManRaid()){
-    return parties
-      .map((slots,i)=>({slots,i,k:keyOf(slots)}))
-      .sort((a,b)=>a.k-b.k||a.i-b.i) // 동률이면 원래 순서 유지 (안정 정렬)
-      .map(x=>x.slots);
-  }
-  // 세트(2개)씩 묶어서 정렬 — 세트의 시작 시간은 8명 중 가장 늦은 사람 기준
+  const byTime=list=>list
+    .map((slots,i)=>({slots,i,k:keyOf(slots)}))
+    .sort((a,b)=>a.k-b.k||a.i-b.i) // 동률이면 원래 순서 유지 (안정 정렬)
+    .map(x=>x.slots);
+  if(!isEightManRaid())return byTime(parties);
+  // 8인 레이드는 공격대(2개 묶음) 단위로 정렬 — 짝이 깨지면 안 된다.
+  // 공격대의 시작 시간은 8명 중 가장 늦은 사람 기준
   const sets=[];
   for(let i=0;i<parties.length;i+=2)sets.push([parties[i],parties[i+1]]);
   return sets
@@ -578,12 +593,32 @@ function switchTab(name){
   if(name==="kanban")renderKanban();
 }
 
+// 읽기 전용 URL 판별.
+// /macros/echo (googleusercontent) 형태는 시트 데이터를 그대로 돌려주는 스냅샷 링크라
+// action 파라미터를 무시하고 POST도 받지 않는다(405). 완료 기록·프리셋은 쓸 수 없다.
+function isReadOnlyUrl(url){
+  const u=url||getUrl();
+  return u.includes("script.googleusercontent.com")||u.includes("/macros/echo");
+}
+
+// 쓰기 요청(POST) 헬퍼.
+// 읽기 전용 URL에서는 서버가 405로 거절하므로, 조용히 실패하는 대신 명확히 알린다.
+function postAction(body){
+  if(isReadOnlyUrl()){
+    return Promise.reject(new Error("현재 URL은 읽기 전용입니다. 저장하려면 Apps Script 웹 앱(/exec) URL이 필요합니다."));
+  }
+  return fetch(getUrl(),{method:"POST",body:JSON.stringify(body)});
+}
+
 // JSONP GET 헬퍼 (GET 파라미터로 action 전달)
 function jsonpGet(params, onSuccess, onError) {
   const url = getUrl();
+  // 읽기 전용 URL이면 서버에 물어봐야 소용없다 — 빈 결과로 즉시 응답해 8초씩 기다리지 않게 한다
+  if(isReadOnlyUrl(url)){ onSuccess([]); return; }
   const cbName = "__cb_" + Date.now() + "_" + Math.random().toString(36).slice(2);
   const script = document.createElement("script");
-  const tid = setTimeout(()=>{ cleanup(); if(onError) onError(); }, 8000);
+  // Apps Script 콜드 스타트가 길어 8초로는 부족하다
+  const tid = setTimeout(()=>{ cleanup(); if(onError) onError(); }, 60000);
   function cleanup(){ clearTimeout(tid); delete window[cbName]; script.parentNode&&script.parentNode.removeChild(script); }
   window[cbName] = data=>{ cleanup(); onSuccess(data); };
   script.onerror = ()=>{ cleanup(); if(onError) onError(); };
@@ -593,15 +628,36 @@ function jsonpGet(params, onSuccess, onError) {
 }
 
 // ── 시트 로드 ──
+// Apps Script는 콜드 스타트 때문에 응답에 30초 이상 걸리는 일이 잦다.
+// 그래서 (1) 제한 시간을 넉넉히 두고 (2) 제한을 넘겨 도착한 응답도 버리지 않고 살린다.
+const SHEET_LOAD_TIMEOUT=60000;   // 이 시간이 지나면 실패로 안내 (요청은 계속 유지)
+const SHEET_LOAD_GIVEUP=180000;   // 이 시간까지도 안 오면 완전히 포기
+
+let sheetLoadSeq=0; // 늦게 온 응답이 최신 요청을 덮어쓰지 않도록 하는 요청 일련번호
+
 function loadSheet(){
   const url=document.getElementById("sheetUrl").value.trim();
   if(!url){showStatus("URL을 입력해주세요.","err");return;}
+  const mySeq=++sheetLoadSeq;
+  const t0=Date.now();
+  let done=false;      // 데이터를 성공적으로 처리했는지
+  let timedOut=false;  // 제한 시간을 넘겼는지 (넘겨도 요청은 계속 기다린다)
+
+  // 경과 시간을 보여줘 멈춘 게 아님을 알린다
+  const tick=setInterval(()=>{
+    if(done||mySeq!==sheetLoadSeq)return clearInterval(tick);
+    const s=Math.round((Date.now()-t0)/1000);
+    if(!timedOut)showStatus(`데이터 불러오는 중... ${s}초 (구글 시트가 느릴 수 있습니다)`,"load");
+  },1000);
   showStatus("데이터 불러오는 중...","load");
-  const cbName="__gs_"+Date.now(),script=document.createElement("script");
-  const tid=setTimeout(()=>{cleanup();showStatus("불러오기 실패: 시간 초과","err");},10000);
-  function cleanup(){clearTimeout(tid);delete window[cbName];script.parentNode&&script.parentNode.removeChild(script);}
-  window[cbName]=data=>{
-    cleanup();
+
+  const finish=()=>{done=true;clearInterval(tick);clearTimeout(warnTid);clearTimeout(giveupTid);};
+
+  // 성공 처리 (JSONP·fetch 어느 쪽으로 오든 여기로 모인다)
+  const onData=data=>{
+    if(done||mySeq!==sheetLoadSeq)return; // 이미 처리했거나 더 새로운 요청이 있으면 무시
+    finish();
+    const s=((Date.now()-t0)/1000).toFixed(1);
     try{
       MEMBERS_RAW=parseSheetData(data);
       if(!MEMBERS_RAW.length)throw new Error("캐릭터 데이터를 찾을 수 없습니다.");
@@ -609,14 +665,60 @@ function loadSheet(){
       selectedMembers=new Set(MEMBER_ORDER);
       loadStartTimes(); // 이전에 설정한 접속 시간 복원
       loadMinBp();      // 이전에 설정한 최소 평균 전투력 복원
-      const total=MEMBERS_RAW.reduce((s,m)=>s+m.chars.length,0);
-      showStatus(`✓ ${MEMBERS_RAW.length}명 / 캐릭터 ${total}개 불러오기 완료`,"ok");
+      const total=MEMBERS_RAW.reduce((s2,m)=>s2+m.chars.length,0);
+      showStatus(`✓ ${MEMBERS_RAW.length}명 / 캐릭터 ${total}개 불러오기 완료 (${s}초)`,"ok");
       document.getElementById("raidCard").style.display="block";
       document.getElementById("mainTabs").style.display="none";
       renderMembers();
     }catch(e){showStatus("파싱 오류: "+e.message,"err");}
   };
-  script.onerror=()=>{cleanup();showStatus("불러오기 실패: 스크립트 로드 오류","err");};
+  const onFail=msg=>{
+    if(done||mySeq!==sheetLoadSeq)return;
+    finish();
+    showStatus("불러오기 실패: "+msg,"err");
+  };
+
+  // 제한 시간을 넘겨도 요청은 살려둔다 — 늦게라도 도착하면 onData가 처리한다
+  const warnTid=setTimeout(()=>{
+    if(done||mySeq!==sheetLoadSeq)return;
+    timedOut=true;
+    showStatus(`응답이 늦어지고 있습니다 (${Math.round(SHEET_LOAD_TIMEOUT/1000)}초 경과). 계속 기다리는 중...`,"load");
+  },SHEET_LOAD_TIMEOUT);
+  const giveupTid=setTimeout(()=>onFail("시간 초과 (3분)"),SHEET_LOAD_GIVEUP);
+
+  // ── 요청 방식 결정 ──
+  // /macros/echo 형태(googleusercontent)는 JSONP를 지원하지 않고 순수 JSON을 돌려준다.
+  // 대신 CORS가 열려 있어 fetch로 받을 수 있다. 구형 /exec URL은 기존대로 JSONP를 쓴다.
+  if(url.includes("script.googleusercontent.com")||url.includes("/macros/echo")){
+    fetch(url)
+      .then(r=>r.text())
+      .then(txt=>{
+        let data;
+        try{data=JSON.parse(txt);}
+        catch(e){
+          // 구글이 에러 페이지(HTML)를 돌려준 경우
+          throw new Error(/^\s*</.test(txt)
+            ? "구글이 데이터 대신 오류 페이지를 반환했습니다. URL이 만료되었거나 접근 권한을 확인해주세요."
+            : "응답을 해석할 수 없습니다.");
+        }
+        onData(data);
+      })
+      .catch(e=>onFail(e.message||"네트워크 오류"));
+    return;
+  }
+
+  // 구형 /exec URL — JSONP
+  const cbName="__gs_"+Date.now(),script=document.createElement("script");
+  window[cbName]=data=>{
+    delete window[cbName];
+    script.parentNode&&script.parentNode.removeChild(script);
+    onData(data);
+  };
+  script.onerror=()=>{
+    delete window[cbName];
+    script.parentNode&&script.parentNode.removeChild(script);
+    onFail("스크립트 로드 오류");
+  };
   script.src=url+(url.includes("?")?"&":"?")+"callback="+cbName;
   document.head.appendChild(script);
 }
@@ -796,8 +898,9 @@ function balanceParties(parties,freeFrom){
     if(best&&bestGain>0){hp.slots[best.hsi]=best.ls;lp.slots[best.lsi]=best.hs;improved=true;}
   }
 }
-// 벨가르딘 8인 전용: 한 세트 = 4인 파티 2개(각 서포터1+딜러3)가 동시 입장
-// 인원이 남으면 8인 세트를 반복 생성한다. 서포터 2명을 못 채우면 세트를 만들지 않는다.
+// 8인 레이드 전용: 한 공격대 = 4인 파티 2개(각 서포터1+딜러3)가 동시 입장.
+// 인원이 남으면 공격대를 반복 생성하고, 정원(8인)을 못 채우는 나머지도
+// buildPartialRaids로 공격대 단위를 유지한 채 묶는다.
 function buildVelgardinParties(used, mCnt){
   const rDQ={}, rSQ={};
   const activeMembers=()=>MEMBER_ORDER.filter(n=>selectedMembers.has(n));
@@ -822,7 +925,7 @@ function buildVelgardinParties(used, mCnt){
       suppPicked.push(c);suppUsedMembers.add(c.member);
       if(suppPicked.length>=2)break;
     }
-    // 서포터 2명을 못 채우면 8인 세트 성립 불가 → 종료
+    // 서포터 2명을 못 채우면 8인 세트 성립 불가 → 남은 인원은 아래에서 4인 파티로 처리
     if(suppPicked.length<2)break;
 
     // ── 딜러 6명이 남아 있는지 확인 (서포터 2명의 멤버는 딜러로 중복 참여 불가) ──
@@ -873,6 +976,7 @@ function buildVelgardinParties(used, mCnt){
     sortP(p1);sortP(p2);
 
     // 8인이 모두 차지 않으면 세트 성립 불가 → 되돌리고 종료
+    // (남은 인원은 아래 fallback에서 4인 파티로 묶는다)
     if(filledCount(p1.slots)<4||filledCount(p2.slots)<4){
       [...p1.slots,...p2.slots].filter(s=>s).forEach(s=>{
         used.delete(s.uid);
@@ -884,8 +988,87 @@ function buildVelgardinParties(used, mCnt){
     result.push(p1,p2);
   }
 
+  // ── 8인 공대를 더 못 만드는 인원 처리 ──
+  // 8인 레이드는 어디까지나 공격대(4인 파티 2개) 단위다.
+  // 정원을 못 채우더라도 파티를 흩어놓지 않고 공격대 단위로 묶는다.
+  const remaining=[];
+  MEMBER_ORDER.filter(n=>selectedMembers.has(n)).forEach(n=>{
+    getEligibleChars(n).forEach(c=>{ if(!used.has(c.uid))remaining.push(c); });
+  });
+  const paired=buildPartialRaids(remaining);
+  paired.forEach(p=>p.slots.filter(s=>s).forEach(s=>{
+    used.add(s.uid);mCnt[s.member]=(mCnt[s.member]||0)+1;
+  }));
+
   balanceParties(result,0);
-  return result;
+  // 정식 8인 공대를 먼저, 정원 미달 공격대는 뒤에 붙인다
+  paired.forEach(p=>{p.isPartial=true;});
+  return [...result,...paired];
+}
+
+// 정원을 못 채우는 인원을 공격대(4인 파티 2개) 단위로 묶는다.
+// 파티를 먼저 만들고 짝을 찾으면 멤버가 겹쳐 짝을 못 짓는 경우가 많으므로,
+// 처음부터 공격대 하나(최대 8명)를 통째로 채운 뒤 두 파티로 나눈다.
+// 한 공격대 안에서는 같은 멤버가 두 번 들어갈 수 없다(동시 입장이므로).
+function buildPartialRaids(chars){
+  const out=[];
+  let pool=[...chars];
+  let guard=0;
+  while(pool.length&&guard++<50){
+    // ① 이번 공격대에 넣을 8명을 고른다 (한 공격대 안에서 멤버 중복 금지).
+    // 남은 캐릭터가 적은 멤버부터 뽑아야, 캐릭터가 많은 멤버가 뒤쪽 공격대를 채울 수 있다.
+    const byMember={};
+    pool.forEach(c=>{(byMember[c.member]=byMember[c.member]||[]).push(c);});
+    const order=Object.keys(byMember)
+      .sort((a,b)=>byMember[a].length-byMember[b].length
+        ||memberOrderIdx(a)-memberOrderIdx(b));
+    const picked=[];
+    order.forEach(m=>{
+      if(picked.length>=8)return;
+      // 각 멤버에서 전투력이 가장 높은 캐릭터 하나
+      picked.push(byMember[m].slice().sort((a,b)=>b.bp-a.bp)[0]);
+    });
+    if(!picked.length)break;
+    // 남은 인원이 파티 하나도 못 채울 만큼이면 중단 (1~2명짜리 공격대 난립 방지)
+    if(picked.length<MIN_PARTY_SIZE&&out.length)break;
+    const pickedSet=new Set(picked.map(c=>c.uid));
+    pool=pool.filter(c=>!pickedSet.has(c.uid));
+
+    // ② 두 파티로 나눈다 — 서포터를 한 명씩 갈라 넣고, 직업 중복을 피해 배분
+    const p1=makeParty(),p2=makeParty();
+    const sup=picked.filter(c=>isSupport(c.cls,c.baseCls));
+    const deal=picked.filter(c=>!isSupport(c.cls,c.baseCls));
+    if(sup[0])placeChar(p1,sup[0]);
+    if(sup[1])placeChar(p2,sup[1]);
+    // 남는 서포터는 딜러 취급해 빈 자리에 넣는다 (정원 미달일 땐 빈 칸보다 낫다)
+    const rest=[...deal,...sup.slice(2)];
+    rest.forEach(c=>{
+      const b=c.baseCls||cleanCls(c.cls);
+      const fits=p=>filledCount(p.slots)<4&&!p.slots.filter(s=>s).some(s=>(s.baseCls||cleanCls(s.cls))===b);
+      // 인원이 적은 파티부터 채워 두 파티 인원을 맞춘다
+      const cand=[p1,p2].filter(fits).sort((x,y)=>filledCount(x.slots)-filledCount(y.slots));
+      const tgt=cand[0]||[p1,p2].filter(p=>filledCount(p.slots)<4)
+        .sort((x,y)=>filledCount(x.slots)-filledCount(y.slots))[0];
+      if(tgt)placeChar(tgt,c);
+    });
+    p1.slots=orderSlots(p1.slots);p2.slots=orderSlots(p2.slots);
+    out.push(p1,p2); // 정원 미달이어도 항상 파티 2개(=공격대 1개)로 유지
+  }
+  // 남은 인원이 있으면(멤버 수 한계로 공격대에 못 들어간 캐릭터) 마지막 공격대의 빈 칸에 채운다
+  if(pool.length&&out.length){
+    pool.forEach(c=>{
+      for(let b=out.length-2;b>=0;b-=2){
+        const setMembers=new Set([...out[b].slots,...out[b+1].slots].filter(s=>s).map(s=>s.member));
+        if(setMembers.has(c.member))continue; // 같은 공격대에 같은 멤버 불가
+        const bcl=c.baseCls||cleanCls(c.cls);
+        const tgt=[out[b],out[b+1]]
+          .filter(p=>filledCount(p.slots)<4&&!p.slots.filter(s=>s).some(s=>(s.baseCls||cleanCls(s.cls))===bcl))
+          .sort((x,y)=>filledCount(y.slots)-filledCount(x.slots))[0];
+        if(tgt){placeChar(tgt,c);tgt.slots=orderSlots(tgt.slots);break;}
+      }
+    });
+  }
+  return out;
 }
 
 function buildFreeParties(used,mCnt){
@@ -1028,9 +1211,12 @@ function buildParties(){
   MEMBER_ORDER.filter(n=>selectedMembers.has(n)).forEach(n=>{maxCharsPerMember[n]=getEligibleChars(n).length;});
   const used=new Set(),mCnt={};MEMBER_ORDER.forEach(n=>{mCnt[n]=0;});
   let allP=[];
+  partialPartyCount=0;
   if(isEightManRaid()){
-    // 8인 레이드: 4인 파티 2개가 한 세트(공대)로 동시 입장. 인원이 남으면 세트를 반복 생성
+    // 8인 레이드: 4인 파티 2개가 한 공격대로 동시 입장.
+    // 인원이 남으면 공격대를 반복 생성하고, 정원 미달이어도 공격대 단위를 유지한다
     allP=buildVelgardinParties(used,mCnt);
+    partialPartyCount=allP.filter(p=>p.isPartial).length;
   } else if(currentDiff.topTier && !isABGroupBroken()){
     const p1=makeParty();
     tryAssignSupport(p1,[...TEAM_A_SINGLE,...TEAM_A_MULTI],used);
@@ -1053,8 +1239,10 @@ function buildParties(){
   document.getElementById("partyCountLabel").textContent=allParties.length;
   renderParties();renderStats();
   document.getElementById("mainTabs").style.display="block";
-  document.getElementById("presetCard").style.display="block";
-  document.getElementById("completedCard").style.display="block";
+  // 읽기 전용 URL에서는 저장이 불가능하므로 프리셋·완료 기록 카드를 숨긴다
+  const ro=isReadOnlyUrl();
+  document.getElementById("presetCard").style.display=ro?"none":"block";
+  document.getElementById("completedCard").style.display=ro?"none":"block";
   loadPresets();
 }
 function updateRaidLabel(){
@@ -1074,10 +1262,11 @@ function recalcCounts(){
   partyCounts={};MEMBERS_RAW.forEach(m=>{partyCounts[m.name]=0;});
   allParties.forEach(slots=>slots.forEach(s=>{if(s)partyCounts[s.member]=(partyCounts[s.member]||0)+1;}));
 }
-// 8인 레이드는 파티를 세트(2개) 단위로 추가/삭제해야 홀수 파티가 생기지 않는다
+// 8인 레이드는 항상 공격대(파티 2개) 단위로 추가/삭제해야 짝이 깨지지 않는다
 function addEmptyParty(){
-  allParties.push([null,null,null,null]);
-  if(isEightManRaid())allParties.push([null,null,null,null]);
+  if(isEightManRaid()){
+    allParties.push([null,null,null,null],[null,null,null,null]);
+  } else allParties.push([null,null,null,null]);
   document.getElementById("partyCountLabel").textContent=allParties.length;renderParties();
 }
 function removeParty(pi){
@@ -1149,8 +1338,8 @@ function makeSetHead(pi){
 function renderParties(){
   const wrap=document.getElementById("partiesWrap");wrap.innerHTML="";
   allParties.forEach((slots,pi)=>{
-    // 8인 레이드: 세트 시작마다 공대 구분선
-    if(isEightManRaid()&&pi%2===0)wrap.appendChild(makeSetHead(pi));
+    // 8인 레이드: 공격대 시작마다 구분선 (인원 미달이어도 공격대 단위로 표시)
+    if(isSetParty(pi)&&pi%2===0)wrap.appendChild(makeSetHead(pi));
     const avg=avgBp(slots);const{hasSupp,warns,bsamCnt,cnt,lowBp,minBp}=partyBadges(slots);
     const block=document.createElement("div");block.className="party-block";
     const hdr=document.createElement("div");hdr.className="party-header";
@@ -1160,8 +1349,7 @@ function renderParties(){
     // 파티 시작 시간 = 가장 늦은 사람 기준
     const startLbl=partyStartLabel(slots);
     if(startLbl)badges+=`<span class="badge badge-time">${startLbl} 시작</span>`;
-    // 8인 레이드: 세트(공대)가 8인을 못 채우면 입장 불가 경고
-    if(isEightManRaid()&&!setIsComplete(pi))badges+='<span class="badge badge-warn">8인 미달 — 입장 불가</span>';
+    // 8인 미달 경고는 공격대 헤더에서 한 번만 안내한다 (파티마다 중복 표시하지 않음)
     // 최소 평균 전투력 미달
     if(lowBp)badges+=`<span class="badge badge-lowbp">평균 ${minBp.toLocaleString()} 미달</span>`;
     warns.forEach(w=>{badges+=`<span class="badge badge-warn">${w}</span>`;});
@@ -1336,7 +1524,7 @@ function renderKanban(){
     const rec={uid:char.uid,member:char.member,cls:char.cls,bp:char.bp,
       raid:document.getElementById('raidSel').value,
       diff:document.getElementById('diffSel').value,weekKey};
-    fetch(getUrl(),{method:'POST',body:JSON.stringify({action:'saveCompleted',records:[rec]})}).catch(()=>{});
+    postAction({action:'saveCompleted',records:[rec]}).catch(()=>{});
     // 즉시 UI 갱신
     renderCompletedList(completedCharData);
     renderKanban();
@@ -1362,7 +1550,7 @@ function renderKanban(){
   // 파티 컬럼
   allParties.forEach((slots,pi)=>{
     // 8인 레이드: 세트 시작마다 공대 구분선
-    if(isEightManRaid()&&pi%2===0)partiesEl.appendChild(makeSetHead(pi));
+    if(isSetParty(pi)&&pi%2===0)partiesEl.appendChild(makeSetHead(pi));
     const col=document.createElement("div");col.className="kanban-party";
     const hdr=document.createElement("div");hdr.className="kanban-party-header";
     const avg=avgBp(slots),cnt=filledCount(slots);
@@ -1396,7 +1584,7 @@ function renderKanban(){
         const srcChar=dragSrc.char;
         const targetChar=allParties[pi][si];
         // 같은 멤버 중복 방지. 8인 레이드는 같은 세트(공대) 전체가 동시 입장하므로 세트 단위로 검사
-        const scope=isEightManRaid()
+        const scope=isSetParty(pi)
           ? [setIdxOf(pi)*2,setIdxOf(pi)*2+1]
           : [pi];
         // 대상 슬롯과 (슬롯 이동이면) 출발 슬롯은 비워지므로 검사에서 제외
@@ -1412,7 +1600,7 @@ function renderKanban(){
           // 기존 카드는 풀로 자동 복귀 (usedUids에서 빠지므로 getPoolChars에서 반영)
         } else if(dragSrc.type==="slot"){
           // 스왑의 반대 방향도 검사: targetChar가 출발 세트로 들어가도 멤버 중복이 없어야 함
-          const srcScope=isEightManRaid()
+          const srcScope=isSetParty(dragSrc.partyIdx)
             ? [setIdxOf(dragSrc.partyIdx)*2,setIdxOf(dragSrc.partyIdx)*2+1]
             : [dragSrc.partyIdx];
           if(targetChar&&!srcScope.includes(pi)){
@@ -1462,12 +1650,18 @@ function savePreset(){
     raidKeys.forEach(k=>{rec[k]=slot[k]||"";});
     return rec;
   }));
-  fetch(getUrl(),{method:"POST",body:JSON.stringify({action:"savePreset",name,raid:document.getElementById("raidSel").value,diff:document.getElementById("diffSel").value,members:[...selectedMembers].join(","),parties:partiesData})})
+  postAction({action:"savePreset",name,raid:document.getElementById("raidSel").value,diff:document.getElementById("diffSel").value,members:[...selectedMembers].join(","),parties:partiesData})
   .then(r=>r.json()).then(d=>{if(d.ok){showPresetStatus(`'${name}' 저장 완료`,"ok");loadPresets();}else showPresetStatus("저장 실패","err");})
-  .catch(()=>showPresetStatus("저장 실패: 네트워크 오류","err"));
+  .catch(e=>showPresetStatus(e.message||"저장 실패: 네트워크 오류","err"));
 }
 function loadPresets(){
-  fetch(getUrl(),{method:"POST",body:JSON.stringify({action:"loadPresets"})})
+  // 읽기 전용 URL이면 프리셋 기능 자체를 숨긴다
+  if(isReadOnlyUrl()){
+    const card=document.getElementById("presetCard");
+    if(card)card.style.display="none";
+    return;
+  }
+  postAction({action:"loadPresets"})
   .then(r=>r.json()).then(data=>renderPresetList(data)).catch(()=>{});
 }
 function renderPresetList(presets){
@@ -1539,7 +1733,7 @@ function applyPreset(p){
 }
 function deletePreset(p){
   if(!confirm(`'${p.name}' 프리셋을 삭제할까요?`))return;
-  fetch(getUrl(),{method:"POST",body:JSON.stringify({action:"deletePreset",name:p.name,savedAt:p.savedAt})})
+  postAction({action:"deletePreset",name:p.name,savedAt:p.savedAt})
   .then(r=>r.json()).then(()=>{showPresetStatus("삭제 완료","ok");loadPresets();}).catch(()=>showPresetStatus("삭제 실패","err"));
 }
 
@@ -1610,7 +1804,7 @@ function toggleCompleted(slot, partyIdx, slotIdx) {
   if (completedUids.has(slot.uid)) {
     // 완료 취소: 즉시 로컬 업데이트
     completedUids.delete(slot.uid);
-    fetch(getUrl(), {method:'POST', body:JSON.stringify({action:'removeCompleted', uid:slot.uid, weekKey})}).catch(()=>{});
+    postAction({action:'removeCompleted', uid:slot.uid, weekKey}).catch(()=>{});
   } else {
     // 완료 처리: 즉시 로컬 업데이트
     completedUids.add(slot.uid);
@@ -1626,7 +1820,7 @@ function toggleCompleted(slot, partyIdx, slotIdx) {
       raid:document.getElementById('raidSel').value,
       diff:document.getElementById('diffSel').value, weekKey};
     // raid는 이미 포함됨
-    fetch(getUrl(), {method:'POST', body:JSON.stringify({action:'saveCompleted', records:[rec]})}).catch(()=>{});
+    postAction({action:'saveCompleted', records:[rec]}).catch(()=>{});
   }
   // 즉시 UI 갱신
   renderCompletedList(completedCharData);
@@ -1647,7 +1841,7 @@ function resetWeek() {
   renderParties();
   renderStats();
   // 시트에서 비동기 삭제
-  uids.forEach(uid => fetch(getUrl(), {method:'POST', body:JSON.stringify({action:'removeCompleted', uid, weekKey})}).catch(()=>{}));
+  uids.forEach(uid => postAction({action:'removeCompleted', uid, weekKey}).catch(()=>{}));
 }
 
 // ── 텍스트 출력 ──
@@ -1675,7 +1869,7 @@ function setupPartyDrag(el, idx, type){
     el.classList.remove('drag-over-party');
     if(dragPartyIdx === null || dragPartyIdx === idx || dragPartyType !== type) return;
     if(isEightManRaid()){
-      // 8인 레이드는 세트(공대) 단위로 교환해야 짝이 깨지지 않는다
+      // 8인 레이드는 공격대(파티 2개) 단위로 교환해야 짝이 깨지지 않는다
       const a = setIdxOf(dragPartyIdx)*2, b = setIdxOf(idx)*2;
       if(a === b){ dragPartyIdx = null; return; }
       const setA = allParties.slice(a, a+2), setB = allParties.slice(b, b+2);
@@ -1702,7 +1896,7 @@ function exportText(){
   const divider = '='.repeat(69);
   const lines = allParties.map((slots,pi)=>{
     const members = slots.filter(s=>s).map(s=>`${s.member}-${s.cls}`).join(', ');
-    // 8인 레이드는 어느 공대의 몇 번째 파티인지 표기
+    // 8인 레이드는 어느 공격대의 몇 번째 파티인지 표기
     const tag = isEightManRaid() ? ` [${setIdxOf(pi)+1}공대-${pi%2+1}]` : '';
     return `${prefix}${tag} : ${members}`;
   });
@@ -1719,14 +1913,13 @@ function exportReport(){
   const out = [`## ${raidName} ${diffName}`, ''];
   allParties.forEach((slots,pi)=>{
     if(isEightManRaid() && pi%2===0){
-      const base=setIdxOf(pi)*2;
-      const tot=filledCount(allParties[base]||[])+filledCount(allParties[base+1]||[]);
+      const tot=setFilledCount(pi);
       out.push(`━━ ${setIdxOf(pi)+1}공대 (8인 동시 입장) — ${tot}/8 ${tot===8?'입장 가능':'인원 미달'} ━━`);
     }
     const f = slots.filter(s=>s);
     const total = f.reduce((s,c)=>s+c.bp,0);
     const avg = f.length ? Math.round(total/f.length) : 0;
-    out.push(isEightManRaid()?`[${setIdxOf(pi)+1}공대 · 파티 ${pi%2+1}]`:`[파티 ${pi+1}]`);
+    out.push(isEightManRaid()?`[${setLabelOf(pi)}]`:`[파티 ${pi+1}]`);
     // 슬롯은 이미 딜러→서포터 순으로 정규화되어 있음
     slots.forEach((s,si)=>{
       const isLast = si===slots.length-1;
@@ -1782,6 +1975,12 @@ function copyExport(){
     window.getSelection().addRange(range);
   });
 }
+
+// ── 초기화 ──
+(function init(){
+  const v=document.getElementById("appVersion");
+  if(v)v.textContent=APP_VERSION;
+})();
 </script>
 </body>
 </html>
