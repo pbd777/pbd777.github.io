@@ -115,6 +115,7 @@ select{min-width:140px;cursor:pointer;}
 .preset-item-meta{font-size:11px;color:var(--text3);}
 .preset-item-btns{display:flex;gap:6px;flex-shrink:0;}
 .preset-empty{font-size:12px;color:var(--text3);padding:8px 0;}
+.preset-mode{font-size:11px;color:var(--text3);padding:4px 8px;background:var(--surface2);border:1px solid var(--border);border-radius:4px;cursor:help;}
 .preset-status{font-size:11px;padding:4px 8px;border-radius:4px;}
 .preset-status-ok{color:var(--teal);background:var(--teal-bg);}
 .preset-status-err{color:var(--red);background:var(--red-bg);}
@@ -223,7 +224,7 @@ select{min-width:140px;cursor:pointer;}
     <div class="section-label">구글 시트 연동</div>
     <div class="row">
       <input type="text" id="sheetUrl" placeholder="Apps Script 웹 앱 URL"
-        value="https://script.googleusercontent.com/macros/echo?user_content_key=AUkAhnQGLGC2OM2KlzGDVOzslsAu0QObE8uXCV55JmLWi5HDd_9ig4Kbm6MqtuaQlK2TcmfYjGSYFK1NAari5Uk2au8l7erxtNhTgT3ntNjQm5lMh54x2NZ7JBngxozCZBL64xqpYuWSiD--TcXHDRrJ_BGJKmwhTeoOEOaKOfB99iw3VA8WczPyGahtYg5fxgFlDNTkw3o97x83kQlAqx6DYAHVQB00hEcsOrNfBhXaHYOfBg4n8FuXOllTEHigN2Ll3WZFogw99YrUq-RRiNtkxYNWr6rjhQ&amp;lib=MHCntlx628YFMzZWHdMexP-uQqv0JC1lu"/>
+        value="https://script.google.com/macros/s/AKfycbyKYgJurkhHZv2g4eYw561TGP2KuxwXSn4utD1DGxEp5w2PLdgI4VLfvM-BKDwmIxFN/exec"/>
       <button class="btn btn-primary" onclick="loadSheet()">불러오기</button>
     </div>
     <div id="statusBox" class="status-box"></div>
@@ -281,6 +282,7 @@ select{min-width:140px;cursor:pointer;}
     <div class="preset-row">
       <button class="btn btn-primary" onclick="savePreset()">현재 구성 저장</button>
       <button class="btn" onclick="loadPresets()">저장된 프리셋 불러오기 ↺</button>
+      <span id="presetMode" class="preset-mode"></span>
       <span id="presetStatus" class="preset-status" style="display:none;"></span>
     </div>
     <div class="preset-list" id="presetList"></div>
@@ -349,7 +351,7 @@ select{min-width:140px;cursor:pointer;}
 // ── 버전 ──
 // 코드를 고칠 때마다 이 숫자만 올리면 화면 표시가 함께 바뀐다.
 // (기존에는 HTML에 직접 박아둔 문자열이라 갱신을 잊기 쉬웠다)
-const APP_VERSION="v20";
+const APP_VERSION="v21";
 
 const RAIDS={
   "성심당":[
@@ -1623,10 +1625,10 @@ function buildParties(){
   document.getElementById("partyCountLabel").textContent=allParties.length;
   renderParties();renderStats();
   document.getElementById("mainTabs").style.display="block";
-  // 읽기 전용 URL에서는 저장이 불가능하므로 프리셋·완료 기록 카드를 숨긴다
-  const ro=isReadOnlyUrl();
-  document.getElementById("presetCard").style.display=ro?"none":"block";
-  document.getElementById("completedCard").style.display=ro?"none":"block";
+  // 프리셋은 항상 쓸 수 있다 — 읽기 전용 URL이면 시트 대신 브라우저에 보관한다
+  document.getElementById("presetCard").style.display="block";
+  // 완료 기록은 시트에 써야 하므로 읽기 전용 URL에서는 숨긴다
+  document.getElementById("completedCard").style.display=isReadOnlyUrl()?"none":"block";
   loadPresets();
 }
 function updateRaidLabel(){
@@ -2043,6 +2045,17 @@ function showPresetStatus(msg,type){
   el.style.display="inline-block";el.textContent=msg;el.className="preset-status preset-status-"+type;
   setTimeout(()=>{el.style.display="none";},3000);
 }
+// 프리셋은 구글 시트의 '프리셋' 시트에 저장한다 (Apps Script 웹 앱 /exec URL 필요).
+// 읽기 전용 스냅샷 URL에서는 쓸 수 없으므로 그 사실을 화면에 알린다.
+const PRESET_RO_MSG="현재 URL은 읽기 전용입니다. 프리셋을 쓰려면 Apps Script 웹 앱(/exec) URL을 넣어주세요.";
+function renderPresetMode(){
+  const el=document.getElementById("presetMode");
+  if(!el)return;
+  const ro=isReadOnlyUrl();
+  el.style.display=ro?"inline-block":"none";
+  el.textContent="읽기 전용 URL";
+  el.title=PRESET_RO_MSG;
+}
 function savePreset(){
   if(!allParties.length){showPresetStatus("저장할 파티 구성이 없습니다.","err");return;}
   const name=presetName();
@@ -2054,19 +2067,25 @@ function savePreset(){
     raidKeys.forEach(k=>{rec[k]=slot[k]||"";});
     return rec;
   }));
-  postAction({action:"savePreset",name,raid:document.getElementById("raidSel").value,diff:document.getElementById("diffSel").value,members:[...selectedMembers].join(","),parties:partiesData})
+  const payload={name,raid:document.getElementById("raidSel").value,diff:document.getElementById("diffSel").value,members:[...selectedMembers].join(","),parties:partiesData};
+  postAction({action:"savePreset",...payload})
   .then(r=>r.json()).then(d=>{if(d.ok){showPresetStatus(`'${name}' 저장 완료`,"ok");loadPresets();}else showPresetStatus("저장 실패","err");})
   .catch(e=>showPresetStatus(e.message||"저장 실패: 네트워크 오류","err"));
 }
 function loadPresets(){
-  // 읽기 전용 URL이면 프리셋 기능 자체를 숨긴다
+  renderPresetMode();
+  // 읽기 전용 URL이면 시트에 물어볼 수 없다 — 조용히 비우지 말고 이유를 알린다
   if(isReadOnlyUrl()){
-    const card=document.getElementById("presetCard");
-    if(card)card.style.display="none";
+    document.getElementById("presetList").innerHTML=`<div class="preset-empty">${PRESET_RO_MSG}</div>`;
     return;
   }
   postAction({action:"loadPresets"})
-  .then(r=>r.json()).then(data=>renderPresetList(data)).catch(()=>{});
+  .then(r=>r.json())
+  .then(data=>renderPresetList(Array.isArray(data)?data:[]))
+  .catch(()=>{
+    document.getElementById("presetList").innerHTML=
+      '<div class="preset-empty">프리셋을 불러오지 못했습니다. 시트 URL과 네트워크를 확인해 주세요.</div>';
+  });
 }
 function renderPresetList(presets){
   const list=document.getElementById("presetList");list.innerHTML="";
@@ -2138,7 +2157,8 @@ function applyPreset(p){
 function deletePreset(p){
   if(!confirm(`'${p.name}' 프리셋을 삭제할까요?`))return;
   postAction({action:"deletePreset",name:p.name,savedAt:p.savedAt})
-  .then(r=>r.json()).then(()=>{showPresetStatus("삭제 완료","ok");loadPresets();}).catch(()=>showPresetStatus("삭제 실패","err"));
+  .then(r=>r.json()).then(()=>{showPresetStatus("삭제 완료","ok");loadPresets();})
+  .catch(e=>showPresetStatus(e.message||"삭제 실패","err"));
 }
 
 // ── 완료 기록 ──
