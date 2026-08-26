@@ -46,12 +46,17 @@ select{min-width:140px;cursor:pointer;}
 .time-item{display:flex;flex-direction:column;gap:4px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:8px 10px;min-width:110px;}
 .time-item-name{font-size:12px;font-weight:600;color:var(--text);}
 .time-select{height:28px;font-size:11px;border-radius:4px;border:1px solid var(--border2);background:var(--surface);color:var(--text2);padding:0 6px;font-family:inherit;cursor:pointer;}
-.time-mismatch{border-color:var(--amber-bg)!important;}
 .badge-time{background:var(--amber-bg);color:var(--amber);border:1px solid #FAC775;}
 .member-chip{display:flex;align-items:center;gap:5px;padding:4px 10px;border-radius:20px;border:1px solid var(--border2);cursor:pointer;font-size:12px;background:var(--surface2);color:var(--text2);user-select:none;transition:all .12s;}
 .member-chip.active{background:#E6F1FB;border-color:#85B7EB;color:#0C447C;}
 .member-chip .dot{width:6px;height:6px;border-radius:50%;background:var(--border2);flex-shrink:0;}
 .member-chip.active .dot{background:var(--accent);}
+.minbp-wrap{display:inline-flex;align-items:center;gap:6px;padding:0 10px;height:36px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);}
+.minbp-wrap label{font-size:11px;color:var(--text3);white-space:nowrap;}
+.minbp-wrap input{width:90px;height:26px;flex:none;min-width:0;padding:0 8px;font-size:12px;text-align:right;border:1px solid var(--border2);border-radius:4px;background:var(--surface);color:var(--text);font-family:inherit;}
+.minbp-wrap input:focus{border-color:var(--accent);outline:none;}
+.badge-lowbp{background:var(--red-bg);color:var(--red);border:1px solid #F09595;}
+.party-avg.avg-low{color:var(--red);font-weight:700;}
 .level-req{font-size:11px;color:var(--text3);padding:4px 10px;background:var(--surface2);border-radius:4px;border:1px solid var(--border);}
 
 /* 탭 */
@@ -224,6 +229,11 @@ select{min-width:140px;cursor:pointer;}
         <option value="">-- 난이도 --</option>
       </select>
       <span id="levelReq" class="level-req" style="display:none;"></span>
+      <span id="minBpWrap" class="minbp-wrap" style="display:none;">
+        <label for="minBpInput">최소 평균 전투력</label>
+        <input type="text" id="minBpInput" inputmode="numeric" placeholder="미설정"
+          onchange="onMinBpChange()" title="이 레이드·난이도에서 파티 평균 전투력이 이 값 이상이 되도록 편성합니다. 비워두면 사용하지 않습니다."/>
+      </span>
     </div>
     <div class="section-label">참여 멤버</div>
     <div class="member-grid" id="memberGrid"></div>
@@ -380,18 +390,9 @@ function hasSynergyCls(p, cls, base){
     return getSynergyGroups(s.cls,s.baseCls).some(g=>mine.includes(g));
   });
 }
-// 접속 시간 허용 폭: 1단계(1시간) 차이까지는 같은 파티 허용, 2단계 이상이면 미스매치
-const TIME_TOLERANCE=1;
-// 파티에 해당 멤버를 추가했을 때 시간대 격차가 허용 폭을 넘는지
-function wouldMismatchTime(p, memberName){
-  const myTime=memberStartTime[memberName];
-  if(!myTime)return false;
-  const slots=p.slots||p; // party 객체 / 슬롯 배열 모두 허용
-  const existingTimes=slots.filter(s=>s).map(s=>memberStartTime[s.member]).filter(Boolean);
-  if(!existingTimes.length)return false;
-  const myRank=timeRank(myTime);
-  return existingTimes.some(t=>Math.abs(timeRank(t)-myRank)>TIME_TOLERANCE);
-}
+// 접속 시간은 파티 편성 조건에 쓰지 않는다.
+// 누구와 같은 파티가 되는지는 시간과 무관하게 정하고,
+// 시간은 완성된 파티를 "빨리 출발할 수 있는 순서"로 정렬/표시하는 데만 쓴다.
 // 파티의 대표 시작 시간 = 가장 늦은 사람 기준 (다 모여야 시작하므로)
 function partyStartRank(slots){
   const ranks=slots.filter(s=>s).map(s=>memberStartTime[s.member]).filter(Boolean).map(timeRank);
@@ -463,11 +464,103 @@ function loadStartTimes(){
   }catch(e){}
 }
 function timeRank(v){return {"9":0,"10":1,"11":2,"later":3}[v]??3;}
-// 파티 내 시간 미스매치 정도 (늦은 사람 기준, 차이가 클수록 나쁨)
-function timeMismatchLevel(times){
-  const ranks=times.filter(t=>t).map(timeRank);
-  if(ranks.length<2)return 0;
-  return Math.max(...ranks)-Math.min(...ranks);
+
+// ── 레이드별 최소 평균 전투력 ──
+// 레이드·난이도마다 따로 저장한다. 값이 없으면(0) 이 조건은 쓰지 않는다.
+let minBpByDiff={}; // {"세르카|하드": 85000}
+const MINBP_STORE_KEY="lostark_party_minBp";
+const diffKeyOf=d=>d?`${d.sheetKey}|${d.label}`:"";
+function saveMinBp(){
+  try{localStorage.setItem(MINBP_STORE_KEY,JSON.stringify(minBpByDiff));}catch(e){}
+}
+function loadMinBp(){
+  try{
+    const raw=localStorage.getItem(MINBP_STORE_KEY);
+    if(raw)minBpByDiff=Object.assign({},JSON.parse(raw),minBpByDiff);
+  }catch(e){}
+}
+function currentMinBp(){return Number(minBpByDiff[diffKeyOf(currentDiff)])||0;}
+// 입력칸에 현재 레이드·난이도의 기준값을 표시
+function renderMinBpInput(){
+  const wrap=document.getElementById("minBpWrap"),input=document.getElementById("minBpInput");
+  if(!wrap||!input)return;
+  if(!currentDiff){wrap.style.display="none";return;}
+  wrap.style.display="inline-flex";
+  const v=currentMinBp();
+  input.value=v?v.toLocaleString():"";
+}
+function onMinBpChange(){
+  const input=document.getElementById("minBpInput");
+  // 콤마/공백은 무시하고 숫자만 남긴다. 음수·잘못된 값은 미설정(0)으로 본다
+  const n=Number(String(input.value).replace(/[^\d.\-]/g,""));
+  const v=(isFinite(n)&&n>0)?Math.round(n):0;
+  if(currentDiff){
+    if(v)minBpByDiff[diffKeyOf(currentDiff)]=v;
+    else delete minBpByDiff[diffKeyOf(currentDiff)];
+    saveMinBp();
+  }
+  input.value=v?v.toLocaleString():"";
+  if(currentDiff&&MEMBERS_RAW.length)buildParties();
+}
+
+// 슬롯 배열이 편성 규칙을 지키는지 (교환 후 검증용)
+function slotsValid(slots){
+  const f=slots.filter(s=>s);
+  if(f.length>4)return false;
+  const ms=f.map(s=>s.member);
+  if(new Set(ms).size!==ms.length)return false;                                  // 멤버 중복
+  const cs=f.map(s=>s.baseCls||cleanCls(s.cls));
+  if(new Set(cs).size!==cs.length)return false;                                  // 직업 중복
+  if(f.filter(s=>isSupport(s.cls,s.baseCls)).length>1)return false;              // 서포터 1명
+  if(bannedPairsIn(slots).length)return false;                                   // 궁합 금지 조합
+  return true;
+}
+// 8인 레이드는 두 파티가 한 세트이므로 세트 전체에서 멤버가 겹치면 안 된다
+function setMemberOk(list,i){
+  if(!isEightManRaid())return true;
+  const partner=i%2===0?i+1:i-1;
+  if(!list[partner])return true;
+  const ms=[...list[i],...list[partner]].filter(Boolean).map(s=>s.member);
+  return new Set(ms).size===ms.length;
+}
+// 최소 평균 전투력 미달 파티 끌어올리기
+// 미달 파티의 캐릭터를, 기준을 넘는 파티의 더 강한 캐릭터와 맞바꾼다.
+// 서포터끼리/딜러끼리만 교환하고, 넘겨준 파티가 기준 아래로 떨어지는 교환은 하지 않는다.
+function enforceMinAvgBp(parties,minBp){
+  if(!minBp||parties.length<2)return parties;
+  const avg=slots=>{const f=slots.filter(s=>s);return f.length?f.reduce((a,c)=>a+c.bp,0)/f.length:0;};
+  let guard=0,improved=true;
+  while(improved&&guard++<200){
+    improved=false;
+    const weakOrder=parties.map((p,i)=>({i,a:avg(p)}))
+      .filter(x=>x.a>0&&x.a<minBp).sort((x,y)=>x.a-y.a);
+    for(const {i:wi} of weakOrder){
+      const weak=parties[wi];
+      let best=null,bestGain=0;
+      for(let j=0;j<parties.length;j++){
+        if(j===wi)continue;
+        const strong=parties[j];
+        if(avg(strong)<=minBp)continue; // 여유 있는 파티에서만 데려온다
+        for(let a=0;a<weak.length;a++){
+          for(let b=0;b<strong.length;b++){
+            const w=weak[a],s=strong[b];
+            if(!w||!s||s.bp<=w.bp)continue;
+            if(isSupport(w.cls,w.baseCls)!==isSupport(s.cls,s.baseCls))continue; // 역할 유지
+            const nw=weak.slice();nw[a]=s;
+            const ns=strong.slice();ns[b]=w;
+            if(!slotsValid(nw)||!slotsValid(ns))continue;
+            if(avg(ns)<minBp)continue; // 넘겨준 쪽이 미달되면 무의미
+            const next=parties.slice();next[wi]=nw;next[j]=ns;
+            if(!setMemberOk(next,wi)||!setMemberOk(next,j))continue;
+            const gain=avg(nw)-avg(weak);
+            if(gain>bestGain){bestGain=gain;best={j,nw,ns};}
+          }
+        }
+      }
+      if(best){parties[wi]=best.nw;parties[best.j]=best.ns;improved=true;break;}
+    }
+  }
+  return parties;
 }
 let partyCounts={},allParties=[],maxCharsPerMember={};
 let dragSrc=null;
@@ -515,6 +608,7 @@ function loadSheet(){
       MEMBER_ORDER=MEMBERS_RAW.map(m=>m.name);
       selectedMembers=new Set(MEMBER_ORDER);
       loadStartTimes(); // 이전에 설정한 접속 시간 복원
+      loadMinBp();      // 이전에 설정한 최소 평균 전투력 복원
       const total=MEMBERS_RAW.reduce((s,m)=>s+m.chars.length,0);
       showStatus(`✓ ${MEMBERS_RAW.length}명 / 캐릭터 ${total}개 불러오기 완료`,"ok");
       document.getElementById("raidCard").style.display="block";
@@ -599,6 +693,7 @@ function onRaidChange(){
   document.getElementById("levelReq").style.display="none";
   document.getElementById("mainTabs").style.display="none";
   currentDiff=null;
+  renderMinBpInput();
   if(!raid)return;
   RAIDS[raid].forEach(d=>{const o=document.createElement("option");o.value=d.label;o.textContent=d.label;ds.appendChild(o);});
 }
@@ -606,9 +701,10 @@ function onDiffChange(){
   const raid=document.getElementById("raidSel").value,diff=document.getElementById("diffSel").value;
   document.getElementById("mainTabs").style.display="none";
   const lr=document.getElementById("levelReq");
-  if(!raid||!diff){lr.style.display="none";currentDiff=null;return;}
+  if(!raid||!diff){lr.style.display="none";currentDiff=null;renderMinBpInput();return;}
   currentDiff=RAIDS[raid].find(d=>d.label===diff);
   lr.textContent=`아이템 레벨 ${currentDiff.minIlvl}+`;lr.style.display="inline-block";
+  renderMinBpInput();
   renderMembers();
   // 완료 데이터 먼저 로드 후 파티 구성
   loadCompletedThenBuild();
@@ -675,8 +771,6 @@ function pickDealer(name,p,used,priority){
   // 직업 중복은 절대 조건 - usedCls에 없는 것만
   const noDupCls=chars.filter(c=>!p.usedCls.has(bc(c)));
   if(!noDupCls.length)return null; // 직업 중복 없이 배치 불가 시 null
-  // 시간은 멤버 단위 판단이라 캐릭터 선택에 영향을 주지 않는다.
-  // A/B조는 명단이 고정이므로 시간이 안 맞아도 배치는 하되 경고 배지로 표시된다.
   return noDupCls.find(c=>!hasSynergyCls(p,c.cls,bc(c))&&!(isBsam(c.cls,bc(c))&&p.bsamCount>=2))
     ||noDupCls.find(c=>!hasSynergyCls(p,c.cls,bc(c)))
     ||noDupCls.find(c=>!(isBsam(c.cls,bc(c))&&p.bsamCount>=2))
@@ -715,31 +809,19 @@ function buildVelgardinParties(used, mCnt){
   const result=[];
   // 세트 단위로 반복: 서포터 2명 + 딜러 6명이 남아 있는 동안 계속 생성
   while(true){
-    // ── 서포터 2명 선발 (이른 시간부터, 같으면 참여횟수 적은 멤버 → 전투력 높은 쪽) ──
+    // ── 서포터 2명 선발 (참여횟수 적은 멤버 → 전투력 높은 쪽) ──
     const suppCand=[];
     activeMembers().forEach(n=>{ rSQ[n].filter(c=>!used.has(c.uid)).forEach(c=>suppCand.push(c)); });
     suppCand.sort((a,b)=>{
-      const t=timeRank(memberStartTime[a.member])-timeRank(memberStartTime[b.member]);
-      if(t)return t;
       const d=(mCnt[a.member]||0)-(mCnt[b.member]||0);
       return d || b.bp-a.bp;
     });
-    // 시간이 맞는 서포터 2명을 우선 찾되, 없으면 시간을 무시하고서라도 2명을 채운다
-    // (공대가 아예 안 만들어지는 것보다 낫다 — 시간 차이는 경고 배지로 표시됨)
-    const pickTwoSupports=(requireTimeFit)=>{
-      const picked=[],members=new Set();
-      for(const c of suppCand){
-        if(members.has(c.member))continue;
-        if(requireTimeFit&&picked.length&&Math.abs(timeRank(memberStartTime[c.member])
-          -timeRank(memberStartTime[picked[0].member]))>TIME_TOLERANCE)continue;
-        picked.push(c);members.add(c.member);
-        if(picked.length>=2)break;
-      }
-      return {picked,members};
-    };
-    let sp=pickTwoSupports(true);
-    if(sp.picked.length<2)sp=pickTwoSupports(false);
-    const suppPicked=sp.picked, suppUsedMembers=sp.members;
+    const suppPicked=[], suppUsedMembers=new Set();
+    for(const c of suppCand){
+      if(suppUsedMembers.has(c.member))continue;
+      suppPicked.push(c);suppUsedMembers.add(c.member);
+      if(suppPicked.length>=2)break;
+    }
     // 서포터 2명을 못 채우면 8인 세트 성립 불가 → 종료
     if(suppPicked.length<2)break;
 
@@ -763,20 +845,14 @@ function buildVelgardinParties(used, mCnt){
     const fillDealers=(party)=>{
       while(party.slots.filter(s=>s).length<4){
         // 금지 조합(카페룽고 서폿 + 잼둘냥 딜러) 멤버는 후보에서 제외
-        const base=activeMembers().filter(n=>rDQ[n]&&rDQ[n].some(c=>!used.has(c.uid))&&!setMembers.has(n)
+        const cands=activeMembers().filter(n=>rDQ[n]&&rDQ[n].some(c=>!used.has(c.uid))&&!setMembers.has(n)
           &&!bannedWithSupport(party,n))
           .sort((a,b)=>{
-            const t=timeRank(memberStartTime[a])-timeRank(memberStartTime[b]);
-            if(t)return t;
             const d=(mCnt[a]||0)-(mCnt[b]||0);return d||memberOrderIdx(a)-memberOrderIdx(b);
           });
-        if(!base.length)break;
-        // 8인이 다 모여야 시작하므로 시간 검사는 세트 전체(두 파티) 기준
-        const setSlots=[...p1.slots,...p2.slots];
-        const timeFit=base.filter(n=>!wouldMismatchTime(setSlots,n));
+        if(!cands.length)break;
         let picked=null,pickedChar=null;
         const bc=c=>c.baseCls||cleanCls(c.cls);
-        for(const cands of (timeFit.length?[timeFit,base]:[base])){
         // 1순위: 직업중복X+시너지중복X+백사멸2이하
         outer1:for(const n of cands){for(const ch of rDQ[n]){if(used.has(ch.uid))continue;if(party.usedCls.has(bc(ch))||hasSynergyCls(party,ch.cls,bc(ch))||(isBsam(ch.cls,bc(ch))&&party.bsamCount>=2))continue;picked=n;pickedChar=ch;break outer1;}}
         // 2순위: 직업중복X+시너지중복X
@@ -785,8 +861,6 @@ function buildVelgardinParties(used, mCnt){
         if(!picked){outer3:for(const n of cands){for(const ch of rDQ[n]){if(used.has(ch.uid))continue;if(party.usedCls.has(bc(ch)))continue;picked=n;pickedChar=ch;break outer3;}}}
         // 4순위: 무조건
         if(!picked){for(const n of cands){const ch=rDQ[n].find(c=>!used.has(c.uid));if(ch){picked=n;pickedChar=ch;break;}}}
-        if(picked)break; // 시간 맞는 후보에서 찾았으면 전체 후보로 넓히지 않는다
-        }
         if(picked&&pickedChar){
           addSlot(party,pickedChar,used);
           setMembers.add(picked);
@@ -821,65 +895,33 @@ function buildFreeParties(used,mCnt){
   const hasRemain=()=>MEMBER_ORDER.some(n=>selectedMembers.has(n)&&((rDQ[n]?.length>0)||(rSQ[n]?.length>0)));
   while(hasRemain()){
     const ep=makeParty();
-    // 이 파티가 노릴 시간대를 먼저 정한다.
-    // 남은 인원이 가장 많은 시간대부터 채워야, 마지막에 자투리끼리 섞이는 일이 줄어든다.
-    const remainByRank={};
-    MEMBER_ORDER.filter(n=>selectedMembers.has(n)&&((rDQ[n]?.length>0)||(rSQ[n]?.length>0)))
-      .forEach(n=>{const r=timeRank(memberStartTime[n]);remainByRank[r]=(remainByRank[r]||0)+1;});
-    // 허용 폭(±TIME_TOLERANCE)을 합쳐 셌을 때 인원이 가장 많은 시간대, 동률이면 이른 시간
-    let targetRank=null,bestCnt=-1;
-    Object.keys(remainByRank).map(Number).sort((a,b)=>a-b).forEach(r=>{
-      let c=0;
-      Object.entries(remainByRank).forEach(([rr,v])=>{if(Math.abs(Number(rr)-r)<=TIME_TOLERANCE)c+=v;});
-      if(c>bestCnt){bestCnt=c;targetRank=r;}
-    });
-    // 목표 시간대와 맞는지 (파티가 비어 있을 때의 판단 기준)
-    const fitsTarget=n=>targetRank===null||Math.abs(timeRank(memberStartTime[n])-targetRank)<=TIME_TOLERANCE;
-    // 서포터도 목표 시간대 우선. 단, 시간이 맞는 서포터가 없으면 시간을 무시하고 붙인다
-    // (서포터 없는 파티보다는 시간이 어긋난 서포터가 낫다)
-    const supPool=MEMBER_ORDER.filter(n=>selectedMembers.has(n)&&!ep.usedMember.has(n)&&rSQ[n]?.length>0
+    // 서포터 선발: 참여횟수가 적은 멤버 우선 (시간은 편성에 관여하지 않는다)
+    const supCand=MEMBER_ORDER.filter(n=>selectedMembers.has(n)&&!ep.usedMember.has(n)&&rSQ[n]?.length>0
       &&!bannedAsSupport(ep,n)).sort((a,b)=>{
-      const t=timeRank(memberStartTime[a])-timeRank(memberStartTime[b]);
-      if(t)return t;
       const d=(mCnt[a]||0)-(mCnt[b]||0);return d||memberOrderIdx(a)-memberOrderIdx(b);
     });
-    const supFit=supPool.filter(fitsTarget);
-    const supCand=supFit.length?supFit:supPool;
     if(supCand.length){const name=supCand[0];const ch=rSQ[name][0];addSlot(ep,ch,used);rSQ[name].shift();mCnt[name]=(mCnt[name]||0)+1;}
     while(ep.slots.filter(s=>s).length<4){
       // 금지 조합(카페룽고 서폿 + 잼둘냥 딜러) 멤버는 후보에서 제외
-      const base=MEMBER_ORDER.filter(n=>selectedMembers.has(n)&&rDQ[n]?.length>0&&!ep.usedMember.has(n)
+      const cands=MEMBER_ORDER.filter(n=>selectedMembers.has(n)&&rDQ[n]?.length>0&&!ep.usedMember.has(n)
         &&!bannedWithSupport(ep,n)).sort((a,b)=>{
-        const t=timeRank(memberStartTime[a])-timeRank(memberStartTime[b]);
-        if(t)return t;
         const d=(mCnt[a]||0)-(mCnt[b]||0);return d||memberOrderIdx(a)-memberOrderIdx(b);
       });
-      if(!base.length)break;
-      // 시간은 선호일 뿐 — 빈 칸 없이 파티를 완성하는 게 우선이다.
-      // 좁은 후보(목표 시간대) → 넓은 후보(이미 들어간 사람 기준) → 전체 순으로 넓혀가며
-      // 어떤 단계에서든 사람을 찾으면 배치한다.
-      const strictFit=base.filter(n=>!wouldMismatchTime(ep,n)&&fitsTarget(n));
-      const looseFit=base.filter(n=>!wouldMismatchTime(ep,n));
-      const tiers=[];
-      if(strictFit.length)tiers.push(strictFit);
-      if(looseFit.length&&looseFit.length!==strictFit.length)tiers.push(looseFit);
-      tiers.push(base); // 최후: 시간 무시하고라도 채운다
+      if(!cands.length)break;
       let picked=null,pickedChar=null;
-      for(const cands of tiers){
-        // 1순위: 직업중복X + 시너지중복X + 백사멸2이하
-        outer1:for(const n of cands){for(const ch of rDQ[n]){const b=ch.baseCls||cleanCls(ch.cls);if(ep.usedCls.has(b)||hasSynergyCls(ep,ch.cls,b)||(isBsam(ch.cls,b)&&ep.bsamCount>=2))continue;picked=n;pickedChar=ch;break outer1;}}
-        // 2순위: 직업중복X + 시너지중복X
-        if(!picked){outer1b:for(const n of cands){for(const ch of rDQ[n]){const b=ch.baseCls||cleanCls(ch.cls);if(ep.usedCls.has(b)||hasSynergyCls(ep,ch.cls,b))continue;picked=n;pickedChar=ch;break outer1b;}}}
-        // 3순위: 직업중복X + 백사멸2이하
-        if(!picked){outer1c:for(const n of cands){for(const ch of rDQ[n]){const b=ch.baseCls||cleanCls(ch.cls);if(ep.usedCls.has(b)||(isBsam(ch.cls,b)&&ep.bsamCount>=2))continue;picked=n;pickedChar=ch;break outer1c;}}}
-        // 4순위: 직업중복X(절대)
-        if(!picked){outer2:for(const n of cands){for(const ch of rDQ[n]){const b=ch.baseCls||cleanCls(ch.cls);if(ep.usedCls.has(b))continue;picked=n;pickedChar=ch;break outer2;}}}
-        if(picked)break; // 시간 맞는 후보에서 찾았으면 전체 후보로 넓히지 않는다
-      }
-      if(!picked){picked=base[0];pickedChar=rDQ[picked][0];}
+      // 1순위: 직업중복X + 시너지중복X + 백사멸2이하
+      outer1:for(const n of cands){for(const ch of rDQ[n]){const b=ch.baseCls||cleanCls(ch.cls);if(ep.usedCls.has(b)||hasSynergyCls(ep,ch.cls,b)||(isBsam(ch.cls,b)&&ep.bsamCount>=2))continue;picked=n;pickedChar=ch;break outer1;}}
+      // 2순위: 직업중복X + 시너지중복X
+      if(!picked){outer1b:for(const n of cands){for(const ch of rDQ[n]){const b=ch.baseCls||cleanCls(ch.cls);if(ep.usedCls.has(b)||hasSynergyCls(ep,ch.cls,b))continue;picked=n;pickedChar=ch;break outer1b;}}}
+      // 3순위: 직업중복X + 백사멸2이하
+      if(!picked){outer1c:for(const n of cands){for(const ch of rDQ[n]){const b=ch.baseCls||cleanCls(ch.cls);if(ep.usedCls.has(b)||(isBsam(ch.cls,b)&&ep.bsamCount>=2))continue;picked=n;pickedChar=ch;break outer1c;}}}
+      // 4순위: 직업중복X(절대)
+      if(!picked){outer2:for(const n of cands){for(const ch of rDQ[n]){const b=ch.baseCls||cleanCls(ch.cls);if(ep.usedCls.has(b))continue;picked=n;pickedChar=ch;break outer2;}}}
+      if(!picked){picked=cands[0];pickedChar=rDQ[picked][0];}
       if(picked&&pickedChar){addSlot(ep,pickedChar,used);rDQ[picked]=rDQ[picked].filter(c=>c.uid!==pickedChar.uid);mCnt[picked]=(mCnt[picked]||0)+1;}else break;
     }
-    // 인원이 남았으면 3명 미만이라도 파티로 남긴다 (버리면 아예 배치받지 못함)
+    // 여기서는 인원이 적어도 일단 파티로 담아두고,
+    // 최소 인원(MIN_PARTY_SIZE) 미달 정리는 consolidateParties 에서 한 번에 처리한다
     sortP(ep);
     if(filledCount(ep.slots)>0)parties.push(ep);
     else break; // 아무도 못 넣었으면 무한 루프 방지
@@ -888,17 +930,58 @@ function buildFreeParties(used,mCnt){
 }
 // 미완성 파티 정리: 자투리 파티의 인원을 앞쪽 빈 칸으로 옮겨 4명 파티를 최대한 만든다.
 // 그리디 배치는 파티 수를 미리 못 정해서 3명+1명 같은 결과가 나올 수 있다.
+// 파티 최소 인원 — 이보다 적으면 파티로 내보내지 않는다
+const MIN_PARTY_SIZE=3;
+// 이 파티에 해당 캐릭터를 넣을 수 있는지 (빈 칸 / 멤버·직업 중복 / 서포터 1명 / 궁합 금지)
+function canAcceptChar(p,ch){
+  const f=p.slots.filter(s=>s);
+  if(f.length>=4)return false;
+  if(f.some(s=>s.member===ch.member))return false;               // 멤버 중복 금지
+  const b=ch.baseCls||cleanCls(ch.cls);
+  if(f.some(s=>(s.baseCls||cleanCls(s.cls))===b))return false;   // 직업 중복 금지
+  if(isSupport(ch.cls,ch.baseCls)&&f.some(s=>isSupport(s.cls,s.baseCls)))return false; // 서포터는 1명
+  if(bannedWithSupport(p,ch.member)||bannedAsSupport(p,ch.member))return false;
+  return true;
+}
+// 빈 칸에 캐릭터를 넣고 파티 상태(멤버/직업/백사멸)를 갱신
+function placeChar(p,ch){
+  const free=p.slots.findIndex(s=>!s);
+  if(free>=0)p.slots[free]=ch;else p.slots.push(ch);
+  p.usedMember.add(ch.member);
+  p.usedCls.add(ch.baseCls||cleanCls(ch.cls));
+  if(isBsam(ch.cls,ch.baseCls))p.bsamCount++;
+}
+// 최소 인원 미달 파티 정리
+// ① 미달 파티의 인원을 빈 칸이 있는 정상 파티로 옮기고
+// ② 그래도 남은 인원끼리 다시 묶어 MIN_PARTY_SIZE 이상이면 파티로 살린다
+// ③ 끝내 인원이 모자라면 배치하지 않는다 (칸반 '미배치 캐릭터'에 남는다)
+function enforceMinPartySize(parties){
+  const keep=parties.filter(p=>filledCount(p.slots)>=MIN_PARTY_SIZE);
+  const orphans=parties.filter(p=>filledCount(p.slots)<MIN_PARTY_SIZE)
+    .flatMap(p=>p.slots.filter(s=>s));
+  if(!orphans.length)return keep;
+  // ① 빈 칸이 있는 파티에 먼저 채워 넣는다 (많이 찬 파티부터 완성)
+  const rest=[];
+  orphans.forEach(ch=>{
+    const tgt=keep.filter(p=>canAcceptChar(p,ch))
+      .sort((a,b)=>filledCount(b.slots)-filledCount(a.slots))[0];
+    if(tgt)placeChar(tgt,ch);else rest.push(ch);
+  });
+  // ② 남은 인원끼리 새 파티 구성
+  let guard=0;
+  while(rest.length&&guard++<50){
+    const np=makeParty();
+    placeChar(np,rest.shift());
+    for(let i=0;i<rest.length&&filledCount(np.slots)<4;){
+      if(canAcceptChar(np,rest[i]))placeChar(np,rest.splice(i,1)[0]);
+      else i++;
+    }
+    if(filledCount(np.slots)>=MIN_PARTY_SIZE)keep.push(np); // ③ 미달이면 버린다
+  }
+  return keep;
+}
 function consolidateParties(parties){
-  const canAccept=(p,ch)=>{
-    const f=p.slots.filter(s=>s);
-    if(f.length>=4)return false;
-    if(f.some(s=>s.member===ch.member))return false;               // 멤버 중복 금지
-    const b=ch.baseCls||cleanCls(ch.cls);
-    if(f.some(s=>(s.baseCls||cleanCls(s.cls))===b))return false;   // 직업 중복 금지
-    if(isSupport(ch.cls,ch.baseCls)&&f.some(s=>isSupport(s.cls,s.baseCls)))return false; // 서포터는 1명
-    if(bannedWithSupport(p,ch.member)||bannedAsSupport(p,ch.member))return false;
-    return true;
-  };
+  const canAccept=canAcceptChar;
   let moved=true,guard=0;
   while(moved&&guard++<50){
     moved=false;
@@ -909,28 +992,19 @@ function consolidateParties(parties){
       for(let si=0;si<src.slots.length;si++){
         const ch=src.slots[si];
         if(!ch)continue;
-        // 빈 칸이 있는 다른 파티 중, 시간이 맞는 쪽을 우선해서 옮긴다
+        // 빈 칸이 있는 다른 파티 중, 많이 찬 파티부터 채워 완성한다
         const targets=parties.filter(t=>t!==src&&filledCount(t.slots)<4&&canAccept(t,ch))
-          .sort((a,b)=>{
-            const am=wouldMismatchTime(a.slots,ch.member)?1:0;
-            const bm=wouldMismatchTime(b.slots,ch.member)?1:0;
-            if(am!==bm)return am-bm;                       // 시간 맞는 파티 우선
-            return filledCount(b.slots)-filledCount(a.slots); // 많이 찬 파티부터 채워 완성
-          });
+          .sort((a,b)=>filledCount(b.slots)-filledCount(a.slots));
         if(!targets.length)continue;
         const tgt=targets[0];
         src.slots[si]=null;
-        const free=tgt.slots.findIndex(s=>!s);
-        if(free>=0)tgt.slots[free]=ch;else tgt.slots.push(ch);
-        tgt.usedMember.add(ch.member);
-        tgt.usedCls.add(ch.baseCls||cleanCls(ch.cls));
-        if(isBsam(ch.cls,ch.baseCls))tgt.bsamCount++;
+        placeChar(tgt,ch);
         moved=true;
       }
     }
   }
-  // 빈 파티 제거 후 슬롯 정규화
-  return parties.filter(p=>filledCount(p.slots)>0)
+  // 빈 파티 제거 → 최소 인원 미달 파티 정리 → 슬롯 정규화
+  return enforceMinPartySize(parties.filter(p=>filledCount(p.slots)>0))
     .map(p=>{p.slots=orderSlots(p.slots);return p;});
 }
 // A/B조 고정 편성 조건: 모든 A/B조 멤버의 최고bp 캐릭터가 완료되지 않아야 함
@@ -969,10 +1043,11 @@ function buildParties(){
     for(const n of TEAM_B_MULTI.filter(n=>selectedMembers.has(n)&&MEMBER_ORDER.includes(n)&&!p2.usedMember.has(n))){if(p2.slots.length>=4)break;const ch=pickDealer(n,p2,used,"lowest");if(ch)addSlot(p2,ch,used);}
     sortP(p2);p2.slots.forEach(s=>{if(s)mCnt[s.member]=(mCnt[s.member]||0)+1;});
     const extras=buildFreeParties(used,mCnt);
-    const fixed=[p1,p2].filter(p=>filledCount(p.slots)>=3);
+    const fixed=[p1,p2].filter(p=>filledCount(p.slots)>=MIN_PARTY_SIZE);
     allP=[...fixed,...extras];balanceParties(allP,fixed.length);
   } else {allP=buildFreeParties(used,mCnt);balanceParties(allP,0);}
-  allParties=sortPartiesByStartTime(allP.map(p=>p.slots));
+  // 평균 전투력 기준이 있으면 미달 파티를 끌어올린 뒤 시작 시간순으로 정렬
+  allParties=sortPartiesByStartTime(enforceMinAvgBp(allP.map(p=>p.slots),currentMinBp()));
   recalcCounts();
   updateRaidLabel();
   document.getElementById("partyCountLabel").textContent=allParties.length;
@@ -1041,10 +1116,12 @@ function partyBadges(slots){
     .forEach(([g])=>warns.push(`${SYNERGY_GROUPS[g].name} 중복`));
   // 궁합 금지 조합
   bannedPairsIn(slots).forEach(([sup,deal])=>warns.push(`${sup}서폿+${deal}딜러`));
-  // 시간대 미스매치 체크
-  const times=slots.filter(s=>s).map(s=>memberStartTime[s.member]).filter(Boolean);
-  if(timeMismatchLevel(times)>TIME_TOLERANCE)warns.push("접속시간 불일치");
-  return{hasSupp,warns,bsamCnt,cnt:slots.filter(s=>s).length};
+  // 접속 시간은 편성 조건이 아니므로 경고하지 않는다 (파티 시작 시간 배지로만 표시)
+  // 최소 평균 전투력 미달
+  const cnt=slots.filter(s=>s).length;
+  const minBp=currentMinBp();
+  const lowBp=!!(minBp&&cnt>0&&avgBp(slots)<minBp);
+  return{hasSupp,warns,bsamCnt,cnt,lowBp,minBp};
 }
 // 8인 세트 구분 헤더 (n공대 · 총원 / 입장 가능 여부)
 function makeSetHead(pi){
@@ -1074,7 +1151,7 @@ function renderParties(){
   allParties.forEach((slots,pi)=>{
     // 8인 레이드: 세트 시작마다 공대 구분선
     if(isEightManRaid()&&pi%2===0)wrap.appendChild(makeSetHead(pi));
-    const avg=avgBp(slots);const{hasSupp,warns,bsamCnt,cnt}=partyBadges(slots);
+    const avg=avgBp(slots);const{hasSupp,warns,bsamCnt,cnt,lowBp,minBp}=partyBadges(slots);
     const block=document.createElement("div");block.className="party-block";
     const hdr=document.createElement("div");hdr.className="party-header";
     let badges="";
@@ -1085,6 +1162,8 @@ function renderParties(){
     if(startLbl)badges+=`<span class="badge badge-time">${startLbl} 시작</span>`;
     // 8인 레이드: 세트(공대)가 8인을 못 채우면 입장 불가 경고
     if(isEightManRaid()&&!setIsComplete(pi))badges+='<span class="badge badge-warn">8인 미달 — 입장 불가</span>';
+    // 최소 평균 전투력 미달
+    if(lowBp)badges+=`<span class="badge badge-lowbp">평균 ${minBp.toLocaleString()} 미달</span>`;
     warns.forEach(w=>{badges+=`<span class="badge badge-warn">${w}</span>`;});
     if(bsamCnt>0&&bsamCnt<=2)badges+=`<span class="badge badge-bsam">백사멸 ${bsamCnt}</span>`;
     const title=isEightManRaid()?setLabelOf(pi):`파티 ${pi+1}`;
@@ -1092,7 +1171,7 @@ function renderParties(){
     left.innerHTML=`<span class="drag-handle" title="드래그해서 순서 변경">⠿</span><span class="party-title">${title}</span>${badges}`;
     const right=document.createElement("div");right.style.cssText="display:flex;align-items:center;gap:8px;";
     const totalBp=slots.filter(s=>s).reduce((s,c)=>s+c.bp,0);
-    if(cnt>0)right.innerHTML=`<span class="party-avg">총 ${totalBp.toLocaleString()} · 평균 ${avg.toLocaleString()}</span>`;
+    if(cnt>0)right.innerHTML=`<span class="party-avg${lowBp?" avg-low":""}">총 ${totalBp.toLocaleString()} · 평균 ${avg.toLocaleString()}</span>`;
     const rmBtn=document.createElement("button");rmBtn.className="btn btn-sm";rmBtn.textContent="삭제";rmBtn.style.cssText="color:var(--red);border-color:#F09595;background:transparent;";rmBtn.onclick=()=>removeParty(pi);
     right.appendChild(rmBtn);hdr.appendChild(left);hdr.appendChild(right);block.appendChild(hdr);
     const slotGrid=document.createElement("div");slotGrid.className="slot-grid";
@@ -1420,6 +1499,7 @@ function applyPreset(p){
   currentDiff=RAIDS[p.raid]?RAIDS[p.raid].find(d=>d.label===p.diff):null;
   const lr=document.getElementById("levelReq");
   if(currentDiff){lr.textContent=`아이템 레벨 ${currentDiff.minIlvl}+`;lr.style.display="inline-block";}
+  renderMinBpInput();
   // 멤버 복원
   if(p.members){selectedMembers=new Set(p.members.split(",").map(s=>s.trim()).filter(Boolean));}
   else{selectedMembers=new Set(MEMBER_ORDER);}
@@ -1664,8 +1744,9 @@ function exportReport(){
     const synTxt=Object.entries(syn)
       .map(([g,v])=>`${SYNERGY_GROUPS[g].name}${v>1?`×${v}`:''}`).join(', ');
     out.push(`  시너지: ${synTxt||'없음'}`);
-    const {warns} = partyBadges(slots);
-    if(warns.length) out.push(`  ⚠ ${warns.join(', ')}`);
+    const {warns, lowBp, minBp} = partyBadges(slots);
+    const allWarns = lowBp ? [`평균 전투력 ${minBp.toLocaleString()} 미달`, ...warns] : warns;
+    if(allWarns.length) out.push(`  ⚠ ${allWarns.join(', ')}`);
     out.push('');
   });
   // 미배치 캐릭터
