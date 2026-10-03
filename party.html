@@ -42,10 +42,13 @@ select{min-width:140px;cursor:pointer;}
 .status-load{background:var(--surface2);border:1px solid var(--border);color:var(--text2);}
 .member-grid{display:flex;flex-wrap:wrap;gap:6px;}
 .time-section{margin-top:14px;}
-.time-grid{display:flex;flex-wrap:wrap;gap:10px;}
-.time-item{display:flex;flex-direction:column;gap:4px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:8px 10px;min-width:110px;}
-.time-item-name{font-size:12px;font-weight:600;color:var(--text);}
-.time-select{height:28px;font-size:11px;border-radius:4px;border:1px solid var(--border2);background:var(--surface);color:var(--text2);padding:0 6px;font-family:inherit;cursor:pointer;}
+.time-grid{display:flex;gap:6px;overflow-x:auto;padding-bottom:2px;}
+.time-grid::-webkit-scrollbar{height:4px;}
+.time-grid::-webkit-scrollbar-thumb{background:var(--border2);border-radius:2px;}
+.time-item{flex:1 1 0;min-width:68px;display:flex;flex-direction:column;gap:4px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:6px 6px;text-align:center;}
+.time-item-name{font-size:11px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-align:center;}
+.time-select{width:100%;min-width:0;height:28px;font-size:11px;border-radius:4px;border:1px solid var(--border2);background:var(--surface);color:var(--text2);padding:0 4px;font-family:inherit;cursor:pointer;text-align:center;transition:all .12s;}
+.time-select.time-late{background:var(--amber-bg);border-color:#FAC775;color:var(--amber);font-weight:600;}
 .badge-time{background:var(--amber-bg);color:var(--amber);border:1px solid #FAC775;}
 .member-chip{display:flex;align-items:center;gap:5px;padding:4px 10px;border-radius:20px;border:1px solid var(--border2);cursor:pointer;font-size:12px;background:var(--surface2);color:var(--text2);user-select:none;transition:all .12s;}
 .member-chip.active{background:#E6F1FB;border-color:#85B7EB;color:#0C447C;}
@@ -183,9 +186,30 @@ select{min-width:140px;cursor:pointer;}
 .complete-btn.undo:hover { background:var(--red); color:#fff; }
 
 .party-block.dragging-party { opacity:.4; }
-.party-block.drag-over-party { border-color:var(--accent); background:#EBF4FF; }
 .kanban-party.dragging-party { opacity:.4; }
-.kanban-party.drag-over-party { border-color:var(--accent); }
+.party-drop-line {
+  height: 4px;
+  background: var(--accent);
+  border-radius: 99px;
+  margin: -3px 0;
+  position: relative;
+  z-index: 10;
+  box-shadow: 0 0 8px rgba(55,138,221,.6);
+  pointer-events: none;
+}
+.party-drop-line::before,
+.party-drop-line::after {
+  content: '';
+  position: absolute;
+  top: -3px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 4px rgba(55,138,221,.5);
+}
+.party-drop-line::before { left: -2px; }
+.party-drop-line::after { right: -2px; }
 .drag-handle { cursor:grab; color:var(--text3); padding:0 6px; font-size:16px; user-select:none; }
 .drag-handle:hover { color:var(--accent); }
 .import-box { margin-top:12px; background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-sm); padding:12px 14px; }
@@ -367,7 +391,7 @@ select{min-width:140px;cursor:pointer;}
 // ── 버전 ──
 // 코드를 고칠 때마다 이 숫자만 올리면 화면 표시가 함께 바뀐다.
 // (기존에는 HTML에 직접 박아둔 문자열이라 갱신을 잊기 쉬웠다)
-const APP_VERSION="v21";
+const APP_VERSION="v25";
 
 const RAIDS={
   "성심당":[
@@ -1008,7 +1032,13 @@ function renderTimeGrid(){
     TIME_OPTIONS.forEach(o=>{const opt=document.createElement("option");opt.value=o.value;opt.textContent=o.label;if(memberStartTime[m.name]===o.value)opt.selected=true;sel.appendChild(opt);});
     if(!memberStartTime[m.name])memberStartTime[m.name]="9"; // 기본값
     sel.value=memberStartTime[m.name];
-    sel.onchange=()=>{memberStartTime[m.name]=sel.value;saveStartTimes();if(currentDiff)loadCompletedThenBuild();};
+    if(sel.value!=="9")sel.classList.add("time-late");
+    sel.onchange=()=>{
+      memberStartTime[m.name]=sel.value;
+      if(sel.value!=="9")sel.classList.add("time-late");else sel.classList.remove("time-late");
+      saveStartTimes();
+      if(currentDiff)loadCompletedThenBuild();
+    };
     item.appendChild(nameDiv);item.appendChild(sel);
     grid.appendChild(item);
   });
@@ -2288,39 +2318,169 @@ function resetWeek() {
 // ── 파티 블록 드래그 순서 변경 ──
 let dragPartyIdx = null;
 let dragPartyType = null; // 'recommend' | 'kanban'
+let partyDropLine = null;
+
+function getPartyDropLine(){
+  if(!partyDropLine){
+    partyDropLine = document.createElement('div');
+    partyDropLine.className = 'party-drop-line';
+  }
+  return partyDropLine;
+}
+
+function removePartyDropLine(){
+  if(partyDropLine && partyDropLine.parentNode){
+    partyDropLine.parentNode.removeChild(partyDropLine);
+  }
+}
+
+// ── 드래그 중 스크롤 지원 (마우스 휠 & 뷰포트 가장자리 자동 스크롤) ──
+let autoScrollTimer = null;
+let lastDragClientY = null;
+
+function updateAutoScroll(clientY){
+  lastDragClientY = clientY;
+  if(!autoScrollTimer && dragPartyIdx !== null){
+    autoScrollTimer = setInterval(()=>{
+      if(dragPartyIdx === null || lastDragClientY === null){
+        stopAutoScroll();
+        return;
+      }
+      const edge = 90;
+      const vh = window.innerHeight;
+      if(lastDragClientY < edge){
+        const factor = (edge - lastDragClientY) / edge;
+        window.scrollBy(0, -Math.ceil(factor * 18));
+      } else if(lastDragClientY > vh - edge){
+        const factor = (lastDragClientY - (vh - edge)) / edge;
+        window.scrollBy(0, Math.ceil(factor * 18));
+      }
+    }, 20);
+  }
+}
+
+function stopAutoScroll(){
+  if(autoScrollTimer){
+    clearInterval(autoScrollTimer);
+    autoScrollTimer = null;
+  }
+  lastDragClientY = null;
+}
+
+// 마우스 휠 스크롤: 드래그 중에도 휠로 위/아래 이동 가능
+window.addEventListener('wheel', e => {
+  if(dragPartyIdx !== null){
+    window.scrollBy(0, e.deltaY);
+  }
+}, { passive: true });
+
+// 드래그 중 커서 위치 추적하여 가장자리 자동 스크롤
+document.addEventListener('dragover', e => {
+  if(dragPartyIdx !== null){
+    updateAutoScroll(e.clientY);
+  }
+});
+
+document.addEventListener('dragleave', e => {
+  if(!e.relatedTarget){
+    removePartyDropLine();
+    stopAutoScroll();
+  }
+});
 
 function setupPartyDrag(el, idx, type){
   el.draggable = true;
-  el.addEventListener('dragstart', e=>{
+
+  // 마우스 위치가 요소 위쪽 절반이면 true (위/아래 기준 삽입)
+  const isBefore = (e) => {
+    const rect = el.getBoundingClientRect();
+    return e.clientY < rect.top + rect.height / 2;
+  };
+
+  el.addEventListener('dragstart', e => {
     dragPartyIdx = idx;
     dragPartyType = type;
     el.classList.add('dragging-party');
     e.dataTransfer.effectAllowed = 'move';
   });
-  el.addEventListener('dragend', ()=>el.classList.remove('dragging-party'));
-  el.addEventListener('dragover', e=>{
-    e.preventDefault();
-    if(dragPartyIdx !== null && dragPartyIdx !== idx && dragPartyType === type)
-      el.classList.add('drag-over-party');
+
+  el.addEventListener('dragend', () => {
+    el.classList.remove('dragging-party');
+    removePartyDropLine();
+    stopAutoScroll();
   });
-  el.addEventListener('dragleave', ()=>el.classList.remove('drag-over-party'));
-  el.addEventListener('drop', e=>{
+
+  el.addEventListener('dragover', e => {
     e.preventDefault();
-    el.classList.remove('drag-over-party');
-    if(dragPartyIdx === null || dragPartyIdx === idx || dragPartyType !== type) return;
-    if(isEightManRaid()){
-      // 8인 레이드는 공격대(파티 2개) 단위로 교환해야 짝이 깨지지 않는다
-      const a = setIdxOf(dragPartyIdx)*2, b = setIdxOf(idx)*2;
-      if(a === b){ dragPartyIdx = null; return; }
-      const setA = allParties.slice(a, a+2), setB = allParties.slice(b, b+2);
-      allParties.splice(a, 2, ...setB);
-      allParties.splice(b, 2, ...setA);
-    } else {
-      // 순서 교환
-      const tmp = allParties[dragPartyIdx];
-      allParties[dragPartyIdx] = allParties[idx];
-      allParties[idx] = tmp;
+    if(dragPartyIdx === null || dragPartyType !== type) return;
+
+    // 8인 레이드일 때 같은 공격대 안에서는 가이드 라인 미표시
+    if(isEightManRaid() && setIdxOf(dragPartyIdx) === setIdxOf(idx)){
+      removePartyDropLine();
+      return;
     }
+    // 일반 레이드에서 자기 자신인 경우
+    if(!isEightManRaid() && dragPartyIdx === idx){
+      removePartyDropLine();
+      return;
+    }
+
+    const before = isBefore(e);
+    const line = getPartyDropLine();
+    const parent = el.parentNode;
+    if(!parent) return;
+
+    let targetNode;
+    if(before){
+      targetNode = (el.previousElementSibling && el.previousElementSibling.classList.contains('set-head'))
+        ? el.previousElementSibling
+        : el;
+    } else {
+      targetNode = el.nextSibling;
+    }
+
+    if(targetNode !== line && line.nextSibling !== targetNode){
+      parent.insertBefore(line, targetNode);
+    }
+  });
+
+  el.addEventListener('drop', e => {
+    e.preventDefault();
+    removePartyDropLine();
+    stopAutoScroll();
+    if(dragPartyIdx === null || dragPartyType !== type) return;
+
+    const before = isBefore(e);
+
+    if(isEightManRaid()){
+      // 8인 레이드: 공격대(파티 2개) 단위로 이동
+      const srcSet = setIdxOf(dragPartyIdx);
+      const tgtSet = setIdxOf(idx);
+      if(srcSet === tgtSet){ dragPartyIdx = null; return; }
+
+      const srcA = srcSet * 2;
+      const tgtA = tgtSet * 2;
+
+      // 이동할 공격대 2개를 떼어낸다
+      const moving = allParties.splice(srcA, 2);
+
+      // 떼어낸 후 대상 인덱스가 바뀔 수 있으므로 재계산
+      const newTgtA = (srcA < tgtA ? tgtSet - 1 : tgtSet) * 2;
+
+      // 삽입 위치 결정: before 면 대상 앞에, after 면 대상 공격대 뒤에
+      const insertAt = before ? newTgtA : newTgtA + 2;
+      allParties.splice(insertAt, 0, ...moving);
+    } else {
+      // 일반 레이드: 파티 1개를 떼어내서 원하는 위치에 삽입
+      if(dragPartyIdx === idx){ dragPartyIdx = null; return; }
+      const [moving] = allParties.splice(dragPartyIdx, 1);
+
+      // 떼어낸 후 대상 인덱스가 뒤로 밀렸을 수 있으므로 보정
+      let insertIdx = dragPartyIdx < idx ? idx - 1 : idx;
+      if(!before) insertIdx += 1;
+      allParties.splice(insertIdx, 0, moving);
+    }
+
     recalcCounts();
     document.getElementById('partyCountLabel').textContent = allParties.length;
     if(type === 'recommend'){ renderParties(); renderStats(); }
